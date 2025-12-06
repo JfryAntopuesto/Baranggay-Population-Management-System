@@ -20,6 +20,14 @@ const PurokAPI = {
                 }
             });
 
+            // Check content type before parsing JSON
+            const contentType = response.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await response.text();
+                console.error('API returned non-JSON response:', text.substring(0, 200));
+                throw new Error('Server returned non-JSON response. The API server may not be running.');
+            }
+
             const data = await response.json();
 
             if (!response.ok) {
@@ -29,6 +37,10 @@ const PurokAPI = {
             return data;
         } catch (error) {
             console.error('API Error:', error);
+            // Re-throw with more context if it's a JSON parse error
+            if (error.message.includes('JSON') || error.message.includes('Unexpected token')) {
+                throw new Error('API server returned invalid response. Please ensure the Node.js server is running on port 3000.');
+            }
             throw error;
         }
     },

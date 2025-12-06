@@ -248,13 +248,36 @@ $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
         });
 
         /**
-         * Load purok information from API
+         * Load purok information from API (with PHP fallback)
          */
         async function loadPurokInfo() {
             const purokInfoEl = document.getElementById('purokInfo');
             
             try {
-                const purok = await PurokAPI.getPurokById(purokID);
+                let purok;
+                
+                // Try Node.js API first
+                try {
+                    purok = await PurokAPI.getPurokById(purokID);
+                } catch (nodeError) {
+                    console.warn('Node.js API failed, trying PHP endpoint:', nodeError);
+                    // Fallback to PHP endpoint
+                    const response = await fetch(`get-purok.php?purokID=${purokID}`);
+                    
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+                    }
+                    
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        const text = await response.text();
+                        console.error('Expected JSON but got:', contentType, text.substring(0, 200));
+                        throw new Error('Server returned non-JSON response');
+                    }
+                    
+                    purok = await response.json();
+                }
                 
                 purokInfoEl.innerHTML = `
                     <h2>${escapeHtml(purok.purok_name)}</h2>
@@ -263,9 +286,10 @@ $searchQuery = isset($_GET['search']) ? trim($_GET['search']) : '';
                     <p><strong>Araw ng Purok:</strong> ${formatDate(purok.araw)}</p>
                 `;
             } catch (error) {
+                console.error('Error loading purok info:', error);
                 purokInfoEl.innerHTML = `
                     <div class="error-message">
-                        <strong>Error:</strong> Failed to load purok information. ${error.message}
+                        <strong>Error:</strong> Failed to load purok information. ${escapeHtml(error.message)}
                     </div>
                 `;
             }
