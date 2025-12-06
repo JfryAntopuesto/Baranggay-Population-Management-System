@@ -394,39 +394,3 @@
 [06-Dec-2025 09:03:18 Europe/Berlin] Fetched pending complaints count: 0
 [06-Dec-2025 09:03:18 Europe/Berlin] Fetched 1 recent announcements with barangay name.
 [06-Dec-2025 09:03:18 Europe/Berlin] Response sent successfully.
-[06-Dec-2025 09:41:37 Europe/Berlin] staff-dashboard-handler.php accessed.
-[06-Dec-2025 09:41:37 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
-[06-Dec-2025 09:41:37 Europe/Berlin] Database connection successful
-[06-Dec-2025 09:41:37 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
-[06-Dec-2025 09:41:37 Europe/Berlin] Database connection successful
-[06-Dec-2025 09:41:37 Europe/Berlin] EventManager initialized at 2025-12-06 09:41:37
-[06-Dec-2025 09:41:37 Europe/Berlin] Fetching counts and announcements...
-[06-Dec-2025 09:41:37 Europe/Berlin] Fetched pending requests count: 2
-[06-Dec-2025 09:41:37 Europe/Berlin] Fetched pending appointments count: 0
-[06-Dec-2025 09:41:37 Europe/Berlin] Fetched pending complaints count: 0
-[06-Dec-2025 09:41:37 Europe/Berlin] Fetched 1 recent announcements with barangay name.
-[06-Dec-2025 09:41:37 Europe/Berlin] Response sent successfully.
-[06-Dec-2025 09:43:47 Europe/Berlin] staff-dashboard-handler.php accessed.
-[06-Dec-2025 09:43:47 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
-[06-Dec-2025 09:43:47 Europe/Berlin] Database connection successful
-[06-Dec-2025 09:43:47 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
-[06-Dec-2025 09:43:47 Europe/Berlin] Database connection successful
-[06-Dec-2025 09:43:47 Europe/Berlin] EventManager initialized at 2025-12-06 09:43:47
-[06-Dec-2025 09:43:47 Europe/Berlin] Fetching counts and announcements...
-[06-Dec-2025 09:43:47 Europe/Berlin] Fetched pending requests count: 2
-[06-Dec-2025 09:43:47 Europe/Berlin] Fetched pending appointments count: 0
-[06-Dec-2025 09:43:47 Europe/Berlin] Fetched pending complaints count: 0
-[06-Dec-2025 09:43:47 Europe/Berlin] Fetched 1 recent announcements with barangay name.
-[06-Dec-2025 09:43:47 Europe/Berlin] Response sent successfully.
-[06-Dec-2025 09:43:49 Europe/Berlin] staff-dashboard-handler.php accessed.
-[06-Dec-2025 09:43:49 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
-[06-Dec-2025 09:43:49 Europe/Berlin] Database connection successful
-[06-Dec-2025 09:43:49 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
-[06-Dec-2025 09:43:49 Europe/Berlin] Database connection successful
-[06-Dec-2025 09:43:49 Europe/Berlin] EventManager initialized at 2025-12-06 09:43:49
-[06-Dec-2025 09:43:49 Europe/Berlin] Fetching counts and announcements...
-[06-Dec-2025 09:43:49 Europe/Berlin] Fetched pending requests count: 2
-[06-Dec-2025 09:43:49 Europe/Berlin] Fetched pending appointments count: 0
-[06-Dec-2025 09:43:49 Europe/Berlin] Fetched pending complaints count: 0
-[06-Dec-2025 09:43:49 Europe/Berlin] Fetched 1 recent announcements with barangay name.
-[06-Dec-2025 09:43:49 Europe/Berlin] Response sent successfully.
