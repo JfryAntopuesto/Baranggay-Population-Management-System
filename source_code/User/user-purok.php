@@ -9,7 +9,7 @@ include "../../database/database-connection.php";
 include "../../database/database-operations.php";
 
 $db = new DatabaseOperations($conn);
-$puroks = $db->getAllPuroks();
+// Puroks will be loaded dynamically from API via JavaScript
 $error_message = '';
 
 function generateUniqueHouseholdID($conn) {
@@ -153,14 +153,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
         <?php if($error_message): ?>
             <div class="message"><?php echo $error_message; ?></div>
         <?php endif; ?>
-        <form method="POST" action="">
+        <form method="POST" action="" id="purokForm">
             <div>
                 <label for="purokID">Choose your purok:</label>
                 <select id="purokID" name="purokID" required>
-                    <option value="">-- Select Purok --</option>
-                    <?php foreach($puroks as $purok): ?>
-                        <option value="<?php echo $purok['purokID']; ?>"><?php echo htmlspecialchars($purok['purok_name']); ?></option>
-                    <?php endforeach; ?>
+                    <option value="">-- Loading Puroks... --</option>
                 </select>
             </div>
             <div>
@@ -170,5 +167,67 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <button type="submit" class="btn-done">Submit</button>
         </form>
     </div>
+
+    <!-- Include the Purok API utility -->
+    <script src="../js/purok-api.js"></script>
+    
+    <script>
+        // Load puroks from API when page loads
+        document.addEventListener('DOMContentLoaded', async function() {
+            const selectElement = document.getElementById('purokID');
+            
+            try {
+                // Show loading state
+                selectElement.innerHTML = '<option value="">Loading puroks...</option>';
+                
+                // Fetch puroks from API
+                const puroks = await PurokAPI.getAllPuroks();
+                
+                // Populate select dropdown
+                selectElement.innerHTML = '<option value="">-- Select Purok --</option>';
+                puroks.forEach(purok => {
+                    const option = document.createElement('option');
+                    option.value = purok.purokID;
+                    option.textContent = purok.purok_name;
+                    selectElement.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Error loading puroks:', error);
+                selectElement.innerHTML = '<option value="">Error loading puroks. Please refresh the page.</option>';
+                
+                // Show error message to user
+                const form = document.getElementById('purokForm');
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'message';
+                errorDiv.textContent = 'Failed to load puroks. Please refresh the page.';
+                form.insertBefore(errorDiv, form.firstChild);
+            }
+        });
+
+        // Optional: Verify purok code using API before form submission
+        document.getElementById('purokForm').addEventListener('submit', async function(e) {
+            const purokID = document.getElementById('purokID').value;
+            const purokCode = document.getElementById('purokCode').value;
+            
+            if (!purokID || !purokCode) {
+                return; // Let HTML5 validation handle this
+            }
+            
+            // Optional: Pre-verify using API (client-side validation)
+            // The server-side validation will still be the final check
+            try {
+                const verification = await PurokAPI.verifyPurokCode(purokCode);
+                if (!verification.valid || verification.data.purokID != purokID) {
+                    e.preventDefault();
+                    alert('Invalid Purok Code or the code does not match the selected Purok.');
+                    return false;
+                }
+            } catch (error) {
+                // If API verification fails, still allow form submission
+                // Server-side validation will handle it
+                console.warn('API verification failed, proceeding with form submission:', error);
+            }
+        });
+    </script>
 </body>
 </html>
