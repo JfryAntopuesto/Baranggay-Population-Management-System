@@ -1,7 +1,7 @@
 <?php 
 $servername = "localhost";
 $username = "root";
-$password = "031405";
+$password = "";
 $dbname = "baranggay_population_management";
 
 error_log("Attempting database connection to $dbname at $servername");
