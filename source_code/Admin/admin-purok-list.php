@@ -210,7 +210,7 @@ if (isset($_GET['search']) && !empty($_GET['search'])) {
 </head>
 <body>
     <header>
-        BARANGAY POPULATION MANAGEMENT SYSTEM
+        <?php require_once '../../config/barangay-config.php'; echo BARANGAY_NAME; ?> - Population Management System
         <button class="logout-btn" onclick="location.href='../logout.php'" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); background: none; border: 2px solid white; color: white; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; transition: all 0.3s ease;">LOGOUT</button>
     </header>
     <div class="container">

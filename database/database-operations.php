@@ -191,25 +191,29 @@ class DatabaseOperations {
 
     // Purok Operations
     public function searchPuroks($searchTerm = '') {
-        $sql = "SELECT purokID, purok_name, araw, purok_pres, purok_code FROM puroks";
-        $params = [];
-        $types = '';
+        require_once __DIR__ . '/../config/barangay-config.php';
+        
+        $allowedPuroks = getAllowedPuroks();
+        $placeholders = str_repeat('?,', count($allowedPuroks) - 1) . '?';
+        
+        $sql = "SELECT purokID, purok_name, araw, purok_pres, purok_code 
+                FROM puroks 
+                WHERE purok_name IN ($placeholders)";
+        $params = $allowedPuroks;
+        $types = str_repeat('s', count($allowedPuroks));
 
         if (!empty($searchTerm)) {
-            $sql .= " WHERE purok_name LIKE ? OR purok_code LIKE ?";
-            $searchTerm = '%' . $searchTerm . '%';
-            $params = [$searchTerm, $searchTerm];
-            $types = 'ss';
+            $sql .= " AND (purok_name LIKE ? OR purok_code LIKE ?)";
+            $searchPattern = '%' . $searchTerm . '%';
+            $params[] = $searchPattern;
+            $params[] = $searchPattern;
+            $types .= 'ss';
         }
 
         $sql .= " ORDER BY purok_name";
 
         $stmt = $this->conn->prepare($sql);
-        
-        if (!empty($params)) {
-            $stmt->bind_param($types, ...$params);
-        }
-        
+        $stmt->bind_param($types, ...$params);
         $stmt->execute();
         $result = $stmt->get_result();
         
@@ -250,19 +254,28 @@ class DatabaseOperations {
 
     public function insertPurok($purok_name, $araw, $purok_pres) {
         try {
+            // Include barangay configuration
+            require_once __DIR__ . '/../config/barangay-config.php';
+            
             // Validate purok name format (letters, spaces, and numbers only)
             if (!preg_match('/^[A-Za-z0-9\s]+$/', $purok_name)) {
                 throw new Exception("Purok name can only contain letters, numbers, and spaces.");
+            }
+
+            // Capitalize first letter of each word in purok name and ensure first letter is capital
+            $purok_name = ucwords(strtolower($purok_name));
+            $purok_name = ucfirst($purok_name);
+            
+            // Validate against allowed puroks list
+            if (!isPurokAllowed($purok_name)) {
+                $allowedList = implode(', ', getAllowedPuroks());
+                throw new Exception("Purok name '{$purok_name}' is not in the allowed list. Allowed puroks: {$allowedList}");
             }
 
             // Check if purok name already exists
             if ($this->purokNameExists($purok_name)) {
                 throw new Exception("A purok with this name already exists.");
             }
-
-            // Capitalize first letter of each word in purok name and ensure first letter is capital
-            $purok_name = ucwords(strtolower($purok_name));
-            $purok_name = ucfirst($purok_name);
 
             // Validate date (must be 2025 or later)
             $date = new DateTime($araw);
@@ -302,10 +315,28 @@ class DatabaseOperations {
     }
 
     public function updatePurok($purokID, $purok_name, $araw, $purok_pres) {
-        $sql = "UPDATE puroks SET purok_name = ?, araw = ?, purok_pres = ? WHERE purokID = ?";
-        $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("sssi", $purok_name, $araw, $purok_pres, $purokID);
-        return $stmt->execute();
+        try {
+            // Include barangay configuration
+            require_once __DIR__ . '/../config/barangay-config.php';
+            
+            // Capitalize first letter of each word in purok name
+            $purok_name = ucwords(strtolower($purok_name));
+            $purok_name = ucfirst($purok_name);
+            
+            // Validate against allowed puroks list
+            if (!isPurokAllowed($purok_name)) {
+                $allowedList = implode(', ', getAllowedPuroks());
+                throw new Exception("Purok name '{$purok_name}' is not in the allowed list. Allowed puroks: {$allowedList}");
+            }
+            
+            $sql = "UPDATE puroks SET purok_name = ?, araw = ?, purok_pres = ? WHERE purokID = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("sssi", $purok_name, $araw, $purok_pres, $purokID);
+            return $stmt->execute();
+        } catch (Exception $e) {
+            error_log("Error in updatePurok: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     public function deletePurok($purokID) {
@@ -337,10 +368,49 @@ class DatabaseOperations {
     }
 
     public function getAllPuroks($page = 1, $per_page = 10) {
+        require_once __DIR__ . '/../config/barangay-config.php';
+        
         $offset = ($page - 1) * $per_page;
-        $sql = "SELECT purokID, purok_name, araw, purok_pres, purok_code FROM puroks ORDER BY purok_name LIMIT ? OFFSET ?";
+        $allowedPuroks = getAllowedPuroks();
+        
+        // Filter puroks to only include allowed ones
+        $placeholders = str_repeat('?,', count($allowedPuroks) - 1) . '?';
+        $sql = "SELECT purokID, purok_name, araw, purok_pres, purok_code 
+                FROM puroks 
+                WHERE purok_name IN ($placeholders)
+                ORDER BY purok_name LIMIT ? OFFSET ?";
+        
         $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("ii", $per_page, $offset);
+        $types = str_repeat('s', count($allowedPuroks)) . 'ii';
+        $params = array_merge($allowedPuroks, [$per_page, $offset]);
+        $stmt->bind_param($types, ...$params);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        
+        $puroks = array();
+        while ($row = $result->fetch_assoc()) {
+            $puroks[] = $row;
+        }
+        return $puroks;
+    }
+    
+    /**
+     * Get all puroks without pagination (for dropdowns)
+     * Returns only allowed puroks
+     */
+    public function getAllPuroksForDropdown() {
+        require_once __DIR__ . '/../config/barangay-config.php';
+        
+        $allowedPuroks = getAllowedPuroks();
+        $placeholders = str_repeat('?,', count($allowedPuroks) - 1) . '?';
+        $sql = "SELECT purokID, purok_name, araw, purok_pres, purok_code 
+                FROM puroks 
+                WHERE purok_name IN ($placeholders)
+                ORDER BY purok_name";
+        
+        $stmt = $this->conn->prepare($sql);
+        $types = str_repeat('s', count($allowedPuroks));
+        $stmt->bind_param($types, ...$allowedPuroks);
         $stmt->execute();
         $result = $stmt->get_result();
         
@@ -352,8 +422,16 @@ class DatabaseOperations {
     }
 
     public function getTotalPuroksCount() {
-        $sql = "SELECT COUNT(*) as total FROM puroks";
-        $result = $this->conn->query($sql);
+        require_once __DIR__ . '/../config/barangay-config.php';
+        
+        $allowedPuroks = getAllowedPuroks();
+        $placeholders = str_repeat('?,', count($allowedPuroks) - 1) . '?';
+        $sql = "SELECT COUNT(*) as total FROM puroks WHERE purok_name IN ($placeholders)";
+        $stmt = $this->conn->prepare($sql);
+        $types = str_repeat('s', count($allowedPuroks));
+        $stmt->bind_param($types, ...$allowedPuroks);
+        $stmt->execute();
+        $result = $stmt->get_result();
         $row = $result->fetch_assoc();
         return $row['total'];
     }
@@ -752,6 +830,13 @@ class DatabaseOperations {
     }
 
     public function updateBaranggayProfile($id, $baranggay_name, $baranggay_capital, $city, $araw_ng_barangay, $current_captain) {
+        // Include barangay configuration
+        require_once __DIR__ . '/../config/barangay-config.php';
+        
+        // Enforce hard-coded barangay information
+        $baranggay_name = BARANGAY_NAME;
+        $city = BARANGAY_CITY;
+        
         $sql = "UPDATE baranggay_profile SET 
                 baranggay_name = ?, 
                 baranggay_capital = ?, 
@@ -765,6 +850,13 @@ class DatabaseOperations {
     }
 
     public function insertBaranggayProfile($baranggay_name, $baranggay_capital, $city, $araw_ng_barangay, $current_captain) {
+        // Include barangay configuration
+        require_once __DIR__ . '/../config/barangay-config.php';
+        
+        // Enforce hard-coded barangay information
+        $baranggay_name = BARANGAY_NAME;
+        $city = BARANGAY_CITY;
+        
         $sql = "INSERT INTO baranggay_profile (baranggay_name, baranggay_capital, city, araw_ng_barangay, current_captain) 
                 VALUES (?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($sql);

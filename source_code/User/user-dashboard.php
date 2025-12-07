@@ -418,6 +418,7 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
     }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <script src="../js/websocket-client.js"></script>
   <script>
     // Prevent back button
     history.pushState(null, null, location.href);
@@ -679,7 +680,7 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
                 }, 500);
                 
                 // Notify other clients via WebSocket that this notification was read
-                if (wsClient && wsClient.ws && wsClient.ws.readyState === WebSocket.OPEN) {
+                if (wsClient && wsClient.ws && wsClient.ws.readyState === WebSocket.OPEN && typeof WebSocket !== 'undefined') {
                     wsClient.send({
                         type: 'notification_read',
                         notifID: notifID,
@@ -811,24 +812,38 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
     document.addEventListener('DOMContentLoaded', function() {
         console.log('Initializing dashboard...'); // Debug log
         
-        // Initialize WebSocket with user ID
+        // Initialize WebSocket with user ID (if WebSocketClient is available)
         const userId = <?php echo json_encode($_SESSION['userID'] ?? 0); ?>;
-        wsClient = new WebSocketClient(userId);
-
-        // Handle real-time updates
-        wsClient.on('announcement_update', (data) => {
-            console.log('Received announcement update:', data); // Debug log
-            if (data.announcements) {
-                renderAnnouncements(data.announcements);
+        
+        // Check if WebSocketClient is available
+        if (typeof WebSocketClient !== 'undefined') {
+            try {
+                wsClient = new WebSocketClient(userId);
+            } catch (error) {
+                console.warn('WebSocket initialization failed:', error);
+                wsClient = null;
             }
-        });
+        } else {
+            console.warn('WebSocketClient is not available. Real-time updates will be disabled.');
+            wsClient = null;
+        }
 
-        wsClient.on('notification_update', (data) => {
-            console.log('Received notification update:', data); // Debug log
-            if (data.notifications) {
-                renderNotifications(data.notifications);
-            }
-        });
+        // Handle real-time updates (only if WebSocket is available)
+        if (wsClient) {
+            wsClient.on('announcement_update', (data) => {
+                console.log('Received announcement update:', data); // Debug log
+                if (data.announcements) {
+                    renderAnnouncements(data.announcements);
+                }
+            });
+
+            wsClient.on('notification_update', (data) => {
+                console.log('Received notification update:', data); // Debug log
+                if (data.notifications) {
+                    renderNotifications(data.notifications);
+                }
+            });
+        }
         
         // Set up periodic notification refresh to catch database deletions
         // This will refresh notifications every 10 seconds for faster updates
@@ -864,19 +879,24 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
             statusIndicator.textContent = connected ? 'Connected' : 'Disconnected';
         }
 
-        // Add connection status handlers
-        wsClient.on('connect', () => {
-            console.log('WebSocket connected');
-            updateConnectionStatus(true);
-        });
+        // Add connection status handlers (only if WebSocket is available)
+        if (wsClient) {
+            wsClient.on('connect', () => {
+                console.log('WebSocket connected');
+                updateConnectionStatus(true);
+            });
 
-        wsClient.on('disconnect', () => {
-            console.log('WebSocket disconnected');
-            updateConnectionStatus(false);
-        });
+            wsClient.on('disconnect', () => {
+                console.log('WebSocket disconnected');
+                updateConnectionStatus(false);
+            });
 
-        // Initial status
-        updateConnectionStatus(wsClient.ws && wsClient.ws.readyState === WebSocket.OPEN);
+            // Initial status
+            updateConnectionStatus(wsClient.ws && wsClient.ws.readyState === WebSocket.OPEN);
+        } else {
+            // Hide connection status if WebSocket is not available
+            statusIndicator.style.display = 'none';
+        }
 
         // Cleanup on page unload using modern event listener
         window.addEventListener('beforeunload', function() {

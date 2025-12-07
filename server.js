@@ -15,7 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 const dbConfig = {
     host: process.env.DB_HOST || 'localhost',
     user: process.env.DB_USER || 'root',
-    password: process.env.DB_PASSWORD || '031405',
+    password: process.env.DB_PASSWORD || 'root',
     database: process.env.DB_NAME || 'baranggay_population_management',
     waitForConnections: true,
     connectionLimit: 10,
@@ -115,15 +115,25 @@ app.get('/api/puroks', async (req, res) => {
 /**
  * GET /api/puroks/all
  * Get all puroks without pagination (useful for dropdowns)
+ * Only returns allowed puroks
  */
 app.get('/api/puroks/all', async (req, res) => {
     try {
+        // Allowed puroks list (must match config/barangay-config.php)
+        const allowedPuroks = [
+            'Tamia 1', 'Tamia 2', 'Marba', 'Magay', '8-7',
+            'Centro 1', 'Centro 2', 'Centro 3', 'Caguisocan',
+            'Bagnan', 'Doña Concepcion', 'Tulay', 'Dalaguit', 'Cuanas'
+        ];
+        
+        const placeholders = allowedPuroks.map(() => '?').join(',');
         const query = `
             SELECT purokID, purok_name, araw, purok_pres, purok_code 
             FROM puroks 
+            WHERE purok_name IN (${placeholders})
             ORDER BY purok_name
         `;
-        const puroks = await executeQuery(query);
+        const puroks = await executeQuery(query, allowedPuroks);
 
         res.json({
             success: true,
@@ -185,7 +195,7 @@ app.get('/api/puroks/:id', async (req, res) => {
 
 /**
  * GET /api/puroks/search?q=searchTerm
- * Search puroks by name or code
+ * Search puroks by name or code (only allowed puroks)
  */
 app.get('/api/puroks/search', async (req, res) => {
     try {
@@ -198,14 +208,23 @@ app.get('/api/puroks/search', async (req, res) => {
             });
         }
 
+        // Allowed puroks list (must match config/barangay-config.php)
+        const allowedPuroks = [
+            'Tamia 1', 'Tamia 2', 'Marba', 'Magay', '8-7',
+            'Centro 1', 'Centro 2', 'Centro 3', 'Caguisocan',
+            'Bagnan', 'Doña Concepcion', 'Tulay', 'Dalaguit', 'Cuanas'
+        ];
+
+        const placeholders = allowedPuroks.map(() => '?').join(',');
         const searchPattern = `%${searchTerm}%`;
         const query = `
             SELECT purokID, purok_name, araw, purok_pres, purok_code 
             FROM puroks 
-            WHERE purok_name LIKE ? OR purok_code LIKE ?
+            WHERE purok_name IN (${placeholders})
+            AND (purok_name LIKE ? OR purok_code LIKE ?)
             ORDER BY purok_name
         `;
-        const puroks = await executeQuery(query, [searchPattern, searchPattern]);
+        const puroks = await executeQuery(query, [...allowedPuroks, searchPattern, searchPattern]);
 
         res.json({
             success: true,

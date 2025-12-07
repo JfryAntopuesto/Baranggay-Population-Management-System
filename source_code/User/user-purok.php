@@ -147,7 +147,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </style>
 </head>
 <body>
-    <header>BARANGAY POPULATION MANAGEMENT SYSTEM</header>
+    <header><?php require_once '../../config/barangay-config.php'; echo BARANGAY_NAME; ?> - Population Management System</header>
     <div class="center-card">
         <h2>Select Your Purok</h2>
         <?php if($error_message): ?>

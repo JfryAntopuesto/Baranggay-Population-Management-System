@@ -7,10 +7,14 @@ if(!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
 
 include "../../database/database-connection.php";
 include "../../database/database-operations.php";
+require_once "../../config/barangay-config.php";
 
 $db = new DatabaseOperations($conn);
 $error_message = '';
 $success_message = '';
+
+// Get allowed puroks
+$allowedPuroks = getAllowedPuroks();
 
 // Check if editing existing purok
 $purok = null;
@@ -102,7 +106,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             margin-bottom: 6px;
         }
         input[type="text"],
-        input[type="date"] {
+        input[type="date"],
+        select {
             width: 100%;
             padding: 12px 10px;
             border: 2px solid #2342f5;
@@ -114,8 +119,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             transition: border 0.2s;
         }
         input[type="text"]:focus,
-        input[type="date"]:focus {
+        input[type="date"]:focus,
+        select:focus {
             border: 2px solid #0033cc;
+        }
+        select {
+            cursor: pointer;
         }
         .btn-done {
             margin: 32px auto 0 auto;
@@ -199,7 +208,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </style>
 </head>
 <body>
-    <header>BARANGAY POPULATION MANAGEMENT SYSTEM</header>
+    <header><?php echo BARANGAY_NAME; ?> - Population Management System</header>
     <div class="center-card">
         <?php if($error_message): ?>
             <div class="message error"><?php echo $error_message; ?></div>
@@ -213,10 +222,32 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <?php endif; ?>
             <div>
                 <label for="purok_name">PUROK NAME:</label>
-                <input type="text" id="purok_name" name="purok_name" required 
-                    pattern="[A-Za-z0-9\s]+" 
-                    title="Purok name can only contain letters, numbers, and spaces"
-                    value="<?php echo isset($purok) ? htmlspecialchars($purok['purok_name']) : ''; ?>">
+                <?php if(isset($purok)): ?>
+                    <!-- When editing, show as readonly text (purok name cannot be changed) -->
+                    <input type="text" id="purok_name" name="purok_name" 
+                        value="<?php echo htmlspecialchars($purok['purok_name']); ?>" 
+                        readonly 
+                        style="background-color: #f5f5f5; color: #666; cursor: not-allowed;"
+                        title="Purok name cannot be changed after creation">
+                    <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">Purok name cannot be changed after creation.</small>
+                <?php else: ?>
+                    <!-- When creating, show dropdown of allowed puroks -->
+                    <select id="purok_name" name="purok_name" required>
+                        <option value="">-- Select Purok --</option>
+                        <?php foreach($allowedPuroks as $allowedPurok): 
+                            // Check if this purok already exists in database
+                            $purokExists = $db->purokNameExists($allowedPurok);
+                            $disabled = $purokExists ? 'disabled' : '';
+                            $selected = '';
+                        ?>
+                            <option value="<?php echo htmlspecialchars($allowedPurok); ?>" <?php echo $disabled; ?>>
+                                <?php echo htmlspecialchars($allowedPurok); ?>
+                                <?php if($purokExists): ?> (Already exists)<?php endif; ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                    <small style="color: #666; font-size: 12px; display: block; margin-top: 5px;">Only predefined puroks are allowed. Puroks that already exist are disabled.</small>
+                <?php endif; ?>
             </div>
             <div>
                 <label for="araw_purok">ARAW NG PUROK:</label>

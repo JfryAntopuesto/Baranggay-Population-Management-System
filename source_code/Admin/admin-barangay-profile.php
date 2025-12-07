@@ -64,6 +64,11 @@
         input:focus {
             border: 2px solid #0066ff;
         }
+        input[readonly] {
+            background-color: #f5f5f5;
+            color: #666;
+            cursor: not-allowed;
+        }
         .button-group {
             display: flex;
             gap: 15px;
@@ -114,22 +119,39 @@
 session_start();
 require_once '../../database/database-operations.php';
 require_once '../../database/database-connection.php';
+require_once '../../config/barangay-config.php';
 
 $db = new DatabaseOperations($conn);
 
 $profileExists = $db->checkBaranggayProfileExists();
 
-// Fetch barangay profile if exists
+// Fetch barangay profile if exists, otherwise use defaults
 $profile = $profileExists ? $db->getBaranggayProfile() : null;
+if (!$profile) {
+    // Set default values from configuration
+    $profile = [
+        'baranggay_name' => BARANGAY_NAME,
+        'city' => BARANGAY_CITY,
+        'baranggay_capital' => '',
+        'araw_ng_barangay' => '',
+        'current_captain' => ''
+    ];
+}
+
+// Ensure hard-coded values are always used
+$profile['baranggay_name'] = BARANGAY_NAME;
+$profile['city'] = BARANGAY_CITY;
 
 // Handle form submission
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $id = isset($_POST['id']) ? $_POST['id'] : null;
-    $baranggay_name = $_POST['baranggay_name'];
     $baranggay_capital = $_POST['baranggay_capital'];
-    $city = $_POST['city'];
     $araw_ng_barangay = $_POST['araw_ng_barangay'];
     $current_captain = $_POST['current_captain'];
+    
+    // Barangay name and city are hard-coded, not from form
+    $baranggay_name = BARANGAY_NAME;
+    $city = BARANGAY_CITY;
 
     if ($profileExists) {
         // Update existing profile
@@ -154,7 +176,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 ?>
 
 <body>
-    <header>BARANGAY POPULATION MANAGEMENT SYSTEM</header>
+    <header><?php echo BARANGAY_NAME; ?> - Population Management System</header>
     <div class="container">
         
         <?php if (isset($_SESSION['success'])): ?>
@@ -172,21 +194,37 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
 
         <form method="POST" action="">
             <!-- Add hidden ID field -->
-            <input type="hidden" name="id" value="<?php echo isset($profile['id']) ? htmlspecialchars($profile['id']) : ''; ?>">>
+            <input type="hidden" name="id" value="<?php echo isset($profile['id']) ? htmlspecialchars($profile['id']) : ''; ?>">
             <div class="form-group">
                 <label>BARANGGAY NAME:</label>
                 <input type="text" name="baranggay_name" 
-                       value="<?php echo isset($profile['baranggay_name']) ? htmlspecialchars($profile['baranggay_name']) : ''; ?>" required>
+                       value="<?php echo htmlspecialchars($profile['baranggay_name']); ?>" 
+                       readonly 
+                       title="Barangay name is fixed and cannot be changed">
+                <small style="color: #666; font-size: 12px;">This field is fixed for this system.</small>
+            </div>
+            <div class="form-group">
+                <label>CITY:</label>
+                <input type="text" name="city" 
+                       value="<?php echo htmlspecialchars($profile['city']); ?>" 
+                       readonly 
+                       title="City is fixed and cannot be changed">
+                <small style="color: #666; font-size: 12px;">This field is fixed for this system.</small>
+            </div>
+            <div class="form-group">
+                <label>PROVINCE:</label>
+                <input type="text" value="<?php echo htmlspecialchars(BARANGAY_PROVINCE); ?>" readonly>
+                <small style="color: #666; font-size: 12px;">This field is fixed for this system.</small>
+            </div>
+            <div class="form-group">
+                <label>REGION:</label>
+                <input type="text" value="<?php echo htmlspecialchars(BARANGAY_REGION); ?>" readonly>
+                <small style="color: #666; font-size: 12px;">This field is fixed for this system.</small>
             </div>
             <div class="form-group">
                 <label>BARANGGAY CAPITAL:</label>
                 <input type="text" name="baranggay_capital" 
                        value="<?php echo isset($profile['baranggay_capital']) ? htmlspecialchars($profile['baranggay_capital']) : ''; ?>" required>
-            </div>
-            <div class="form-group">
-                <label>CITY:</label>
-                <input type="text" name="city" 
-                       value="<?php echo isset($profile['city']) ? htmlspecialchars($profile['city']) : ''; ?>" required>
             </div>
             <div class="form-group">
                 <label>ARAW NG BARANGGAY:</label>
