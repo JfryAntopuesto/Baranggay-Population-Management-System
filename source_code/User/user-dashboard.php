@@ -418,7 +418,6 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
     }
   </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-  <script src="../js/websocket-client.js"></script>
   <script>
     // Prevent back button
     history.pushState(null, null, location.href);
@@ -481,8 +480,6 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
   </div>
 
   <script>
-    let wsClient;
-
     // Function to fetch and display announcements
     function getAnnouncements() {
         fetch('../announcement-handler.php?action=get_announcements')
@@ -678,15 +675,6 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
                     console.log('Reloading notifications from server');
                     loadNotifications();
                 }, 500);
-                
-                // Notify other clients via WebSocket that this notification was read
-                if (wsClient && wsClient.ws && wsClient.ws.readyState === WebSocket.OPEN && typeof WebSocket !== 'undefined') {
-                    wsClient.send({
-                        type: 'notification_read',
-                        notifID: notifID,
-                        userId: <?php echo json_encode($_SESSION['userID'] ?? 0); ?>
-                    });
-                }
             } else {
                 throw new Error(data.error || data.debug || 'Failed to mark notification as read');
             }
@@ -808,49 +796,17 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
         });
     }
 
-    // Initialize WebSocket connection
+    // Initialize dashboard
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('Initializing dashboard...'); // Debug log
+        console.log('Initializing dashboard...');
         
-        // Initialize WebSocket with user ID (if WebSocketClient is available)
-        const userId = <?php echo json_encode($_SESSION['userID'] ?? 0); ?>;
-        
-        // Check if WebSocketClient is available
-        if (typeof WebSocketClient !== 'undefined') {
-            try {
-                wsClient = new WebSocketClient(userId);
-            } catch (error) {
-                console.warn('WebSocket initialization failed:', error);
-                wsClient = null;
-            }
-        } else {
-            console.warn('WebSocketClient is not available. Real-time updates will be disabled.');
-            wsClient = null;
-        }
-
-        // Handle real-time updates (only if WebSocket is available)
-        if (wsClient) {
-            wsClient.on('announcement_update', (data) => {
-                console.log('Received announcement update:', data); // Debug log
-                if (data.announcements) {
-                    renderAnnouncements(data.announcements);
-                }
-            });
-
-            wsClient.on('notification_update', (data) => {
-                console.log('Received notification update:', data); // Debug log
-                if (data.notifications) {
-                    renderNotifications(data.notifications);
-                }
-            });
-        }
-        
-        // Set up periodic notification refresh to catch database deletions
-        // This will refresh notifications every 10 seconds for faster updates
-        const notificationRefreshInterval = setInterval(() => {
-            console.log('Performing periodic notification refresh');
-            // Only refresh if no notification updates are in progress
+        // Set up periodic refresh for announcements and notifications
+        // This will refresh data every 10 seconds for updates
+        const refreshInterval = setInterval(() => {
+            console.log('Performing periodic refresh');
+            // Only refresh if no updates are in progress
             if (!notificationUpdateInProgress) {
+                getAnnouncements();
                 loadNotifications();
             } else {
                 console.log('Skipping periodic refresh - update already in progress');
@@ -861,51 +817,11 @@ $householdMembersCount = $householdInfo ? $db->getHouseholdMembersCount($househo
         getAnnouncements();
         loadNotifications();
 
-        // Add connection status indicator
-        const statusIndicator = document.createElement('div');
-        statusIndicator.style.position = 'fixed';
-        statusIndicator.style.bottom = '10px';
-        statusIndicator.style.right = '10px';
-        statusIndicator.style.padding = '5px 10px';
-        statusIndicator.style.borderRadius = '5px';
-        statusIndicator.style.fontSize = '12px';
-        statusIndicator.style.transition = 'all 0.3s ease';
-        document.body.appendChild(statusIndicator);
-
-        // Update connection status
-        function updateConnectionStatus(connected) {
-            statusIndicator.style.backgroundColor = connected ? '#4CAF50' : '#f44336';
-            statusIndicator.style.color = 'white';
-            statusIndicator.textContent = connected ? 'Connected' : 'Disconnected';
-        }
-
-        // Add connection status handlers (only if WebSocket is available)
-        if (wsClient) {
-            wsClient.on('connect', () => {
-                console.log('WebSocket connected');
-                updateConnectionStatus(true);
-            });
-
-            wsClient.on('disconnect', () => {
-                console.log('WebSocket disconnected');
-                updateConnectionStatus(false);
-            });
-
-            // Initial status
-            updateConnectionStatus(wsClient.ws && wsClient.ws.readyState === WebSocket.OPEN);
-        } else {
-            // Hide connection status if WebSocket is not available
-            statusIndicator.style.display = 'none';
-        }
-
-        // Cleanup on page unload using modern event listener
+        // Cleanup on page unload
         window.addEventListener('beforeunload', function() {
-            if (wsClient) {
-                wsClient.disconnect();
-            }
-            // Clear the notification refresh interval to prevent memory leaks
-            if (notificationRefreshInterval) {
-                clearInterval(notificationRefreshInterval);
+            // Clear the refresh interval to prevent memory leaks
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
             }
         });
     });

@@ -26,31 +26,17 @@ const dbConfig = {
     timezone: 'local'
 };
 
-// Log database configuration (without password)
-console.log('📊 Database Configuration:');
-console.log(`   Host: ${dbConfig.host}`);
-console.log(`   User: ${dbConfig.user}`);
-console.log(`   Database: ${dbConfig.database}`);
-console.log(`   Password: ${dbConfig.password ? '***' : 'not set'}`);
-
 // Create connection pool
 const pool = mysql.createPool(dbConfig);
 
 // Test database connection
 pool.getConnection()
     .then(connection => {
-        console.log('✅ Database connected successfully');
+        console.log('Database connected successfully');
         connection.release();
     })
     .catch(err => {
-        console.error('❌ Database connection failed:', err.message);
-        console.error('   Error code:', err.code);
-        console.error('\n💡 Troubleshooting tips:');
-        console.error('   1. Make sure MySQL/XAMPP is running');
-        console.error('   2. Verify the password in database-connection.php matches');
-        console.error('   3. Check if the database "baranggay_population_management" exists');
-        console.error('   4. Try connecting with MySQL Workbench or phpMyAdmin to verify credentials');
-        console.error('\n   The server will continue running, but API calls will fail until the database is connected.');
+        console.error('Database connection failed:', err.message);
     });
 
 // Helper function to execute queries
@@ -64,33 +50,41 @@ const executeQuery = async (query, params = []) => {
     }
 };
 
-// ==================== PUROK API ROUTES ====================
 
-/**
- * GET /api/puroks
- * Get all puroks with optional pagination
- * Query params: page (default: 1), per_page (default: 10)
- */
 app.get('/api/puroks', async (req, res) => {
     try {
         const page = parseInt(req.query.page) || 1;
         const perPage = parseInt(req.query.per_page) || 10;
         const offset = (page - 1) * perPage;
 
-        // Get total count
-        const countQuery = 'SELECT COUNT(*) as total FROM puroks';
-        const [countResult] = await pool.execute(countQuery);
-        const total = countResult[0].total;
-        const totalPages = Math.ceil(total / perPage);
+        // Ensure values are valid integers
+        const limitValue = Math.max(1, Math.min(100, parseInt(perPage))); // Clamp between 1 and 100
+        const offsetValue = Math.max(0, parseInt(offset)); // Ensure non-negative
 
-        // Get puroks with pagination
+        // Allowed puroks list (must match config/barangay-config.php)
+        const allowedPuroks = [
+            'Tamia 1', 'Tamia 2', 'Marba', 'Magay', '8-7',
+            'Centro 1', 'Centro 2', 'Centro 3', 'Caguisocan',
+            'Bagnan', 'Doña Concepcion', 'Tulay', 'Dalaguit', 'Cuanas'
+        ];
+
+        // Get total count (only allowed puroks)
+        const placeholders = allowedPuroks.map(() => '?').join(',');
+        const countQuery = `SELECT COUNT(*) as total FROM puroks WHERE purok_name IN (${placeholders})`;
+        const [countResult] = await pool.execute(countQuery, allowedPuroks);
+        const total = countResult[0].total;
+        const totalPages = Math.ceil(total / limitValue);
+
+        // Get puroks with pagination (only allowed puroks)
+        // Note: LIMIT and OFFSET must be integers, not placeholders in MySQL
         const query = `
             SELECT purokID, purok_name, araw, purok_pres, purok_code 
             FROM puroks 
+            WHERE purok_name IN (${placeholders})
             ORDER BY purok_name 
-            LIMIT ? OFFSET ?
+            LIMIT ${limitValue} OFFSET ${offsetValue}
         `;
-        const puroks = await executeQuery(query, [perPage, offset]);
+        const puroks = await executeQuery(query, allowedPuroks);
 
         res.json({
             success: true,
@@ -112,11 +106,7 @@ app.get('/api/puroks', async (req, res) => {
     }
 });
 
-/**
- * GET /api/puroks/all
- * Get all puroks without pagination (useful for dropdowns)
- * Only returns allowed puroks
- */
+
 app.get('/api/puroks/all', async (req, res) => {
     try {
         // Allowed puroks list (must match config/barangay-config.php)
