@@ -18,10 +18,10 @@ class DatabaseOperations {
         return $result->num_rows > 0;
     }
 
-    public function insertUser($firstname, $lastname, $middlename, $birthdate, $username, $password) {
-        $insert_sql = "INSERT INTO user (firstname, lastname, middlename, birthdate, username, password) VALUES (?, ?, ?, ?, ?, ?)";
+    public function insertUser($firstname, $lastname, $middlename, $birthdate, $username, $password, $email = null) {
+        $insert_sql = "INSERT INTO user (firstname, lastname, middlename, birthdate, username, password, email) VALUES (?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($insert_sql);
-        $stmt->bind_param("ssssss", $firstname, $lastname, $middlename, $birthdate, $username, $password);
+        $stmt->bind_param("sssssss", $firstname, $lastname, $middlename, $birthdate, $username, $password, $email);
         return $stmt->execute();
     }
 
@@ -42,6 +42,18 @@ class DatabaseOperations {
         $sql = "SELECT * FROM user WHERE username = ? AND password = ?";
         $stmt = $this->conn->prepare($sql);
         $stmt->bind_param("ss", $username, $password);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            return $result->fetch_assoc();
+        }
+        return false;
+    }
+
+    public function getUserByEmail($email) {
+        $sql = "SELECT * FROM user WHERE email = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("s", $email);
         $stmt->execute();
         $result = $stmt->get_result();
         if ($result->num_rows > 0) {
@@ -1842,4 +1854,4 @@ class DatabaseOperations {
         }
         return null;
     }
-} 
+}
