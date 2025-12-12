@@ -1,4 +1,4 @@
-@-- ============================================
+-- ============================================
 -- Barangay Population Management System
 -- Database Schema
 -- ============================================
@@ -21,7 +21,9 @@ CREATE TABLE IF NOT EXISTS user (
     middlename VARCHAR(255),
     birthdate DATE NOT NULL,
     username VARCHAR(255) NOT NULL UNIQUE,
-    password VARCHAR(255) NOT NULL
+    password VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NULL,
+    UNIQUE KEY idx_user_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Moderators table (Admin and Staff)
@@ -108,31 +110,9 @@ CREATE TABLE IF NOT EXISTS requests (
     message TEXT NOT NULL,
     userID INT(11) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    created_at DATETIME NOT NULL,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Approved requests table
-CREATE TABLE IF NOT EXISTS approved_requests (
-    requestID VARCHAR(50) PRIMARY KEY,
-    type VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    userID INT(11) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    created_at DATETIME NOT NULL,
     staff_comment TEXT,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Declined requests table
-CREATE TABLE IF NOT EXISTS declined_requests (
-    requestID VARCHAR(50) PRIMARY KEY,
-    type VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    userID INT(11) NOT NULL,
-    status VARCHAR(50) NOT NULL,
     created_at DATETIME NOT NULL,
-    staff_comment TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -148,33 +128,9 @@ CREATE TABLE IF NOT EXISTS complaints (
     userID INT(11) NOT NULL,
     complained_person VARCHAR(255) NOT NULL,
     status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    created_at DATETIME NOT NULL,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Approved complaints table
-CREATE TABLE IF NOT EXISTS approved_complaints (
-    complaintID VARCHAR(50) PRIMARY KEY,
-    type VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    userID INT(11) NOT NULL,
-    complained_person VARCHAR(255) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    created_at DATETIME NOT NULL,
     staff_comment TEXT,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Declined complaints table
-CREATE TABLE IF NOT EXISTS declined_complaints (
-    complaintID VARCHAR(50) PRIMARY KEY,
-    type VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    userID INT(11) NOT NULL,
-    complained_person VARCHAR(255) NOT NULL,
-    status VARCHAR(50) NOT NULL,
     created_at DATETIME NOT NULL,
-    staff_comment TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -182,89 +138,20 @@ CREATE TABLE IF NOT EXISTS declined_complaints (
 -- Ticket Tables
 -- ============================================
 
--- Tickets table (pending)
-CREATE TABLE IF NOT EXISTS ticket (
-    ticketID INT(11) AUTO_INCREMENT PRIMARY KEY,
-    type VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    userID INT(11) NOT NULL,
-    status VARCHAR(50) NOT NULL DEFAULT 'pending',
-    created_at DATETIME NOT NULL,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Approved tickets table
-CREATE TABLE IF NOT EXISTS approved_tickets (
-    ticketID INT(11) AUTO_INCREMENT PRIMARY KEY,
-    type VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    userID INT(11) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    created_at DATETIME NOT NULL,
-    staff_comment TEXT,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Declined tickets table
-CREATE TABLE IF NOT EXISTS declined_tickets (
-    ticketID INT(11) AUTO_INCREMENT PRIMARY KEY,
-    type VARCHAR(255) NOT NULL,
-    message TEXT NOT NULL,
-    userID INT(11) NOT NULL,
-    status VARCHAR(50) NOT NULL,
-    created_at DATETIME NOT NULL,
-    staff_comment TEXT,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
 -- ============================================
 -- Appointment Tables
 -- ============================================
 
--- Appointments table (pending)
 CREATE TABLE IF NOT EXISTS appointments (
     appointment_id INT(11) AUTO_INCREMENT PRIMARY KEY,
     userID INT(11) NOT NULL,
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL,
     purpose TEXT NOT NULL,
+    status VARCHAR(50) NOT NULL DEFAULT 'pending',
+    staff_comment TEXT,
     created_at DATETIME NOT NULL,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Approved appointments table
-CREATE TABLE IF NOT EXISTS approved_appointments (
-    appointment_id INT(11) PRIMARY KEY,
-    userID INT(11) NOT NULL,
-    appointment_date DATE NOT NULL,
-    appointment_time TIME NOT NULL,
-    purpose TEXT NOT NULL,
-    staff_comment TEXT,
-    approved_at DATETIME NOT NULL,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Declined appointments table
-CREATE TABLE IF NOT EXISTS declined_appointments (
-    appointment_id INT(11) PRIMARY KEY,
-    userID INT(11) NOT NULL,
-    appointment_date DATE NOT NULL,
-    appointment_time TIME NOT NULL,
-    purpose TEXT NOT NULL,
-    staff_comment TEXT,
-    declined_at DATETIME NOT NULL,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Finished appointments table
-CREATE TABLE IF NOT EXISTS finished_appointments (
-    appointment_id INT(11) PRIMARY KEY,
-    userID INT(11) NOT NULL,
-    appointment_date DATE NOT NULL,
-    appointment_time TIME NOT NULL,
-    purpose TEXT NOT NULL,
-    staff_comment TEXT,
-    finished_at DATETIME NOT NULL,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -277,24 +164,6 @@ CREATE TABLE IF NOT EXISTS announcement (
     annID INT(11) AUTO_INCREMENT PRIMARY KEY,
     content TEXT NOT NULL,
     datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Seen announcements table
-CREATE TABLE IF NOT EXISTS seen_announcement (
-    annID INT(11) NOT NULL,
-    userID INT(11) NOT NULL,
-    PRIMARY KEY (annID, userID),
-    FOREIGN KEY (annID) REFERENCES announcement(annID) ON DELETE CASCADE,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Announcement likes table
-CREATE TABLE IF NOT EXISTS announcement_likes (
-    annID INT(11) NOT NULL,
-    userID INT(11) NOT NULL,
-    PRIMARY KEY (annID, userID),
-    FOREIGN KEY (annID) REFERENCES announcement(annID) ON DELETE CASCADE,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- ============================================
@@ -338,10 +207,7 @@ CREATE INDEX idx_members_household ON members(householdID);
 -- Indexes for appointments table
 CREATE INDEX idx_appointments_date ON appointments(appointment_date);
 CREATE INDEX idx_appointments_user ON appointments(userID);
-
--- Indexes for approved_appointments table
-CREATE INDEX idx_approved_appointments_date ON approved_appointments(appointment_date);
-CREATE INDEX idx_approved_appointments_user ON approved_appointments(userID);
+CREATE INDEX idx_appointments_status ON appointments(status);
 
 -- Indexes for requests table
 CREATE INDEX idx_requests_user ON requests(userID);

@@ -477,42 +477,27 @@ class DatabaseOperations {
 
     public function getRequestsByUserID($userID) {
         try {
-            // Get pending requests
-            $pending_sql = "SELECT requestID, type, message, userID, status, created_at FROM requests WHERE userID = ? AND status = 'pending'";
-            $stmt = $this->conn->prepare($pending_sql);
-            $stmt->bind_param("i", $userID);
-            $stmt->execute();
-            $pending_result = $stmt->get_result();
-
-            // Get finished requests
-            $finished_sql = "SELECT requestID, type, message, userID, status, created_at, staff_comment FROM approved_requests WHERE userID = ?";
-            $stmt = $this->conn->prepare($finished_sql);
-            $stmt->bind_param("i", $userID);
-            $stmt->execute();
-            $finished_result = $stmt->get_result();
-
-            // Get declined requests
-            $declined_sql = "SELECT requestID, type, message, userID, status, created_at, staff_comment FROM declined_requests WHERE userID = ?";
-            $stmt = $this->conn->prepare($declined_sql);
-            $stmt->bind_param("i", $userID);
-            $stmt->execute();
-            $declined_result = $stmt->get_result();
-
             $requests = array(
                 'pending' => array(),
                 'finished' => array(),
                 'declined' => array()
             );
 
-            while ($row = $pending_result->fetch_assoc()) {
-                $requests['pending'][] = $row;
+            $sql = "SELECT requestID, type, message, userID, status, staff_comment, created_at, updated_at
+                    FROM requests
+                    WHERE userID = ?";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("i", $userID);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            while ($row = $result->fetch_assoc()) {
+                $key = strtolower($row['status']);
+                if (!isset($requests[$key])) {
+                    $requests[$key] = [];
+                }
+                $requests[$key][] = $row;
             }
-            while ($row = $finished_result->fetch_assoc()) {
-                $requests['finished'][] = $row;
-            }
-            while ($row = $declined_result->fetch_assoc()) {
-                $requests['declined'][] = $row;
-            }
+            $stmt->close();
 
             foreach ($requests as $status => &$statusRequests) {
                 usort($statusRequests, function($a, $b) {
@@ -533,10 +518,8 @@ class DatabaseOperations {
         error_log("Starting updateRequestStatus for request ID: " . $requestID . " with status: " . $status);
         
         try {
-            // Start transaction
             $this->conn->begin_transaction();
             
-            // Get request data first
             $select_sql = "SELECT * FROM requests WHERE requestID = ?";
             $select_stmt = $this->conn->prepare($select_sql);
             if (!$select_stmt) {
@@ -553,81 +536,29 @@ class DatabaseOperations {
             }
             
             error_log("Retrieved request data: " . print_r($request_data, true));
-            
-            if ($status === 'FINISHED') {
-                // Insert into approved_requests table
-                $insert_sql = "INSERT INTO approved_requests (requestID, type, message, userID, status, created_at, staff_comment)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-                $insert_stmt = $this->conn->prepare($insert_sql);
-                if (!$insert_stmt) {
-                    throw new Exception('Prepare insert failed: ' . $this->conn->error);
-                }
-                $insert_stmt->bind_param("ississs",
-                    $request_data['requestID'],
-                    $request_data['type'],
-                    $request_data['message'],
-                    $request_data['userID'],
-                    $status,
-                    $request_data['created_at'],
-                    $staff_comment
-                );
-                if (!$insert_stmt->execute()) {
-                    throw new Exception('Insert to approved_requests failed: ' . $insert_stmt->error);
-                }
-                $insert_stmt->close();
-                
-                // Add notification for finished request
-                $notification_content = "Your " . $request_data['type'] . " request has been finished. Staff comment: " . $staff_comment;
-                error_log("Adding notification for finished request: " . $notification_content);
-                $this->addNotification($request_data['userID'], $notification_content, $staff_comment);
-                
-            } else if ($status === 'DECLINED') {
-                // Insert into declined_requests table
-                $insert_sql = "INSERT INTO declined_requests (requestID, type, message, userID, status, created_at, staff_comment)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-                $insert_stmt = $this->conn->prepare($insert_sql);
-                if (!$insert_stmt) {
-                    throw new Exception('Prepare insert declined failed: ' . $this->conn->error);
-                }
-                $insert_stmt->bind_param("ississs",
-                    $request_data['requestID'],
-                    $request_data['type'],
-                    $request_data['message'],
-                    $request_data['userID'],
-                    $status,
-                    $request_data['created_at'],
-                    $staff_comment
-                );
-                if (!$insert_stmt->execute()) {
-                    throw new Exception('Insert to declined_requests failed: ' . $insert_stmt->error);
-                }
-                $insert_stmt->close();
-                
-                // Add notification for declined request
-                $notification_content = "Your " . $request_data['type'] . " request has been declined. Staff comment: " . $staff_comment;
-                error_log("Adding notification for declined request: " . $notification_content);
-                $this->addNotification($request_data['userID'], $notification_content, $staff_comment);
+
+            $update_sql = "UPDATE requests SET status = ?, staff_comment = ?, updated_at = NOW() WHERE requestID = ?";
+            $update_stmt = $this->conn->prepare($update_sql);
+            if (!$update_stmt) {
+                throw new Exception('Prepare update failed: ' . $this->conn->error);
             }
-            
-            // Delete from requests table
-            $delete_sql = "DELETE FROM requests WHERE requestID = ?";
-            $delete_stmt = $this->conn->prepare($delete_sql);
-            if (!$delete_stmt) {
-                throw new Exception('Prepare delete failed: ' . $this->conn->error);
+            $update_stmt->bind_param("ssi", $status, $staff_comment, $requestID);
+            if (!$update_stmt->execute()) {
+                throw new Exception('Update requests failed: ' . $update_stmt->error);
             }
-            $delete_stmt->bind_param("i", $requestID);
-            if (!$delete_stmt->execute()) {
-                throw new Exception('Delete from requests failed: ' . $delete_stmt->error);
-            }
-            $delete_stmt->close();
+            $update_stmt->close();
             
-            // Commit transaction
+            $notification_content = "Your " . $request_data['type'] . " request has been " . strtolower($status) . ".";
+            if (!empty($staff_comment)) {
+                $notification_content .= " Staff comment: " . $staff_comment;
+            }
+            $this->addNotification($request_data['userID'], $notification_content, $staff_comment);
+            
             $this->conn->commit();
             error_log("Successfully updated request status and added notification");
             return true;
             
         } catch (Exception $e) {
-            // Rollback transaction on error
             $this->conn->rollback();
             error_log("Error in updateRequestStatus: " . $e->getMessage());
             throw $e;
@@ -919,27 +850,13 @@ class DatabaseOperations {
     // Appointment Operations
     public function getAppointmentsCountForDate($date) {
         try {
-            // Count pending appointments for the date
-            $sql_pending = "SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ?";
-            $stmt_pending = $this->conn->prepare($sql_pending);
-            $stmt_pending->bind_param("s", $date);
-            $stmt_pending->execute();
-            $result_pending = $stmt_pending->get_result();
-            $row_pending = $result_pending->fetch_assoc();
-            $count_pending = $row_pending['count'];
-
-            // Count approved appointments for the date
-            $sql_approved = "SELECT COUNT(*) as count FROM approved_appointments WHERE appointment_date = ?";
-            $stmt_approved = $this->conn->prepare($sql_approved);
-            $stmt_approved->bind_param("s", $date);
-            $stmt_approved->execute();
-            $result_approved = $stmt_approved->get_result();
-            $row_approved = $result_approved->fetch_assoc();
-            $count_approved = $row_approved['count'];
-
-            // Total count is the sum
-            return $count_pending + $count_approved;
-
+            $sql = "SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ? AND status IN ('pending', 'approved')";
+            $stmt = $this->conn->prepare($sql);
+            $stmt->bind_param("s", $date);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $row = $result->fetch_assoc();
+            return $row['count'] ?? 0;
         } catch (Exception $e) {
             error_log("Error in getAppointmentsCountForDate: " . $e->getMessage());
             return 0;
@@ -948,8 +865,7 @@ class DatabaseOperations {
 
     public function checkExistingAppointment($appointment_date, $appointment_time, $user_id) {
         try {
-            // Check if user already has an appointment on this day in pending appointments
-            $sql = "SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ? AND userID = ?";
+            $sql = "SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ? AND userID = ? AND status IN ('pending','approved')";
             $stmt = $this->conn->prepare($sql);
             if (!$stmt) return false;
             $stmt->bind_param("si", $appointment_date, $user_id);
@@ -958,37 +874,14 @@ class DatabaseOperations {
             $row = $result->fetch_assoc();
             if ($row['count'] > 0) return true;
 
-            // Check if user already has an approved appointment on this day
-            $sql = "SELECT COUNT(*) as count FROM approved_appointments WHERE appointment_date = ? AND userID = ?";
-            $stmt = $this->conn->prepare($sql);
-            if (!$stmt) return false;
-            $stmt->bind_param("si", $appointment_date, $user_id);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $row = $result->fetch_assoc();
-            if ($row['count'] > 0) return true;
-
-            // Check in pending appointments for time slot
-            $sql = "SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ? AND appointment_time = ?";
+            $sql = "SELECT COUNT(*) as count FROM appointments WHERE appointment_date = ? AND appointment_time = ? AND status IN ('pending','approved')";
             $stmt = $this->conn->prepare($sql);
             if (!$stmt) return false;
             $stmt->bind_param("ss", $appointment_date, $appointment_time);
             $stmt->execute();
             $result = $stmt->get_result();
             $row = $result->fetch_assoc();
-            if ($row['count'] > 0) return true;
-
-            // Check in approved appointments for time slot
-            $sql = "SELECT COUNT(*) as count FROM approved_appointments WHERE appointment_date = ? AND appointment_time = ?";
-            $stmt = $this->conn->prepare($sql);
-            if (!$stmt) return false;
-            $stmt->bind_param("ss", $appointment_date, $appointment_time);
-            $stmt->execute();
-            $result = $stmt->get_result();
-            $row = $result->fetch_assoc();
-            if ($row['count'] > 0) return true;
-
-            return false;
+            return $row['count'] > 0;
         } catch (Exception $e) {
             error_log("Error in checkExistingAppointment: " . $e->getMessage());
             return false;
@@ -1002,7 +895,7 @@ class DatabaseOperations {
                 return false;
             }
 
-            $sql = "INSERT INTO appointments (userID, appointment_date, appointment_time, purpose, created_at) VALUES (?, ?, ?, ?, NOW())";
+            $sql = "INSERT INTO appointments (userID, appointment_date, appointment_time, purpose, status, created_at) VALUES (?, ?, ?, ?, 'pending', NOW())";
             $stmt = $this->conn->prepare($sql);
             if (!$stmt) return false;
             $stmt->bind_param("isss", $user_id, $appointment_date, $appointment_time, $purpose);
@@ -1019,49 +912,21 @@ class DatabaseOperations {
     // Appointment Queue Operations
     public function moveAppointmentToFinished($appointment_id, $staff_comment) {
         try {
-            // Get the appointment
-            $sql = "SELECT * FROM appointments WHERE appointment_id = ?";
+            $sql = "UPDATE appointments SET status = 'approved', staff_comment = ?, updated_at = NOW() WHERE appointment_id = ?";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param("i", $appointment_id);
+            if (!$stmt) {
+                throw new Exception("Prepare update failed: " . $this->conn->error);
+            }
+            $stmt->bind_param("si", $staff_comment, $appointment_id);
             $stmt->execute();
-            $result = $stmt->get_result();
-            $appt = $result->fetch_assoc();
-            if (!$appt) return false;
 
-            // Start transaction
-            $this->conn->begin_transaction();
-
-            try {
-                // Insert into approved_appointments
-                $sql2 = "INSERT INTO approved_appointments (appointment_id, userID, appointment_date, appointment_time, purpose, staff_comment, approved_at) VALUES (?, ?, ?, ?, ?, ?, NOW())";
-                $stmt2 = $this->conn->prepare($sql2);
-                $stmt2->bind_param("iissss", $appt['appointment_id'], $appt['userID'], $appt['appointment_date'], $appt['appointment_time'], $appt['purpose'], $staff_comment);
-                if (!$stmt2->execute()) {
-                    throw new Exception("Insert to approved_appointments failed");
-                }
-
-                // Delete from appointments
-                $sql3 = "DELETE FROM appointments WHERE appointment_id = ?";
-                $stmt3 = $this->conn->prepare($sql3);
-                $stmt3->bind_param("i", $appointment_id);
-                if (!$stmt3->execute()) {
-                    throw new Exception("Delete from appointments failed");
-                }
-
-                // Add notification with separate content and staff comment
+            // Fetch appointment for notification
+            $appt = $this->getAppointmentById($appointment_id);
+            if ($appt) {
                 $content = "Your appointment scheduled for " . date('F d, Y', strtotime($appt['appointment_date'])) . " at " . $appt['appointment_time'] . " has been approved.";
                 $this->addNotification($appt['userID'], $content, $staff_comment);
-
-                // Commit transaction
-                $this->conn->commit();
-                return true;
-
-            } catch (Exception $e) {
-                // Rollback transaction on error
-                $this->conn->rollback();
-                throw $e;
             }
-
+            return true;
         } catch (Exception $e) {
             error_log("Error in moveAppointmentToFinished: " . $e->getMessage());
             return false;
@@ -1070,49 +935,20 @@ class DatabaseOperations {
 
     public function moveAppointmentToDeclined($appointment_id, $staff_comment) {
         try {
-            // Get the appointment
-            $sql = "SELECT * FROM appointments WHERE appointment_id = ?";
+            $sql = "UPDATE appointments SET status = 'declined', staff_comment = ?, updated_at = NOW() WHERE appointment_id = ?";
             $stmt = $this->conn->prepare($sql);
-            $stmt->bind_param("i", $appointment_id);
+            if (!$stmt) {
+                throw new Exception("Prepare update failed: " . $this->conn->error);
+            }
+            $stmt->bind_param("si", $staff_comment, $appointment_id);
             $stmt->execute();
-            $result = $stmt->get_result();
-            $appt = $result->fetch_assoc();
-            if (!$appt) return false;
 
-            // Start transaction
-            $this->conn->begin_transaction();
-
-            try {
-                // Insert into declined_appointments
-                $sql2 = "INSERT INTO declined_appointments (appointment_id, userID, appointment_date, appointment_time, purpose, staff_comment, declined_at) VALUES (?, ?, ?, ?, ?, ?, NOW())";
-                $stmt2 = $this->conn->prepare($sql2);
-                $stmt2->bind_param("iissss", $appt['appointment_id'], $appt['userID'], $appt['appointment_date'], $appt['appointment_time'], $appt['purpose'], $staff_comment);
-                if (!$stmt2->execute()) {
-                    throw new Exception("Insert to declined_appointments failed");
-                }
-
-                // Delete from appointments
-                $sql3 = "DELETE FROM appointments WHERE appointment_id = ?";
-                $stmt3 = $this->conn->prepare($sql3);
-                $stmt3->bind_param("i", $appointment_id);
-                if (!$stmt3->execute()) {
-                    throw new Exception("Delete from appointments failed");
-                }
-
-                // Add notification with separate content and staff comment
+            $appt = $this->getAppointmentById($appointment_id);
+            if ($appt) {
                 $content = "Your appointment scheduled for " . date('F d, Y', strtotime($appt['appointment_date'])) . " at " . $appt['appointment_time'] . " has been declined.";
                 $this->addNotification($appt['userID'], $content, $staff_comment);
-
-                // Commit transaction
-                $this->conn->commit();
-                return true;
-
-            } catch (Exception $e) {
-                // Rollback transaction on error
-                $this->conn->rollback();
-                throw $e;
             }
-
+            return true;
         } catch (Exception $e) {
             error_log("Error in moveAppointmentToDeclined: " . $e->getMessage());
             return false;
@@ -1120,7 +956,7 @@ class DatabaseOperations {
     }
 
     public function getFinishedAppointments() {
-        $sql = "SELECT * FROM finished_appointments ORDER BY finished_at DESC";
+        $sql = "SELECT * FROM appointments WHERE status = 'approved' ORDER BY updated_at DESC";
         $result = $this->conn->query($sql);
         $appts = [];
         while ($row = $result->fetch_assoc()) {
@@ -1491,14 +1327,7 @@ class DatabaseOperations {
     // Add method to get count of upcoming appointments
     public function getUpcomingAppointmentsCount() {
         try {
-            // Assuming 'appointments' table holds pending appointments
-            // and 'approved_appointments' holds approved ones with a future date
-            // This query counts pending appointments and approved future appointments
-            $query = "SELECT COUNT(*) as count FROM (
-                        SELECT appointment_id FROM appointments
-                        UNION ALL
-                        SELECT appointment_id FROM approved_appointments WHERE appointment_date >= CURDATE()
-                      ) as total_appointments";
+            $query = "SELECT COUNT(*) as count FROM appointments WHERE appointment_date >= CURDATE() AND status IN ('pending','approved')";
             $result = $this->conn->query($query);
             if ($result) {
                 $row = $result->fetch_assoc();
@@ -1516,59 +1345,18 @@ class DatabaseOperations {
         try {
             error_log("Starting deleteOldRequests function at " . date('Y-m-d H:i:s'));
             
-            // Start transaction
             $this->conn->begin_transaction();
             error_log("Transaction started");
-            
-            // Check if approved_requests table exists
-            $check_approved = "SHOW TABLES LIKE 'approved_requests'";
-            $approved_exists = $this->conn->query($check_approved)->num_rows > 0;
-            error_log("approved_requests table exists: " . ($approved_exists ? "yes" : "no"));
-            
-            if ($approved_exists) {
-                // First, let's check how many records we have
-                $count_query = "SELECT COUNT(*) as count FROM approved_requests";
-                $count_result = $this->conn->query($count_query);
-                $count_row = $count_result->fetch_assoc();
-                error_log("Total approved requests before deletion: " . $count_row['count']);
-                
-                // Delete finished requests that are 30 seconds old
-                $finishedQuery = "DELETE FROM approved_requests WHERE TIMESTAMPDIFF(SECOND, created_at, NOW()) >= 30";
-                error_log("Executing query: " . $finishedQuery);
-                $result = $this->conn->query($finishedQuery);
-                if ($result) {
-                    $deleted_count = $this->conn->affected_rows;
-                    error_log("Successfully deleted " . $deleted_count . " old approved requests");
-                } else {
-                    error_log("Error deleting old approved requests: " . $this->conn->error);
-                }
+
+            $deleteQuery = "DELETE FROM requests WHERE status IN ('FINISHED','DECLINED','APPROVED','approved','declined','finished') AND TIMESTAMPDIFF(SECOND, created_at, NOW()) >= 30";
+            $result = $this->conn->query($deleteQuery);
+            if ($result) {
+                $deleted_count = $this->conn->affected_rows;
+                error_log("Successfully deleted " . $deleted_count . " old handled requests");
+            } else {
+                error_log("Error deleting old handled requests: " . $this->conn->error);
             }
-            
-            // Check if declined_requests table exists
-            $check_declined = "SHOW TABLES LIKE 'declined_requests'";
-            $declined_exists = $this->conn->query($check_declined)->num_rows > 0;
-            error_log("declined_requests table exists: " . ($declined_exists ? "yes" : "no"));
-            
-            if ($declined_exists) {
-                // First, let's check how many records we have
-                $count_query = "SELECT COUNT(*) as count FROM declined_requests";
-                $count_result = $this->conn->query($count_query);
-                $count_row = $count_result->fetch_assoc();
-                error_log("Total declined requests before deletion: " . $count_row['count']);
-                
-                // Delete declined requests that are 30 seconds old
-                $declinedQuery = "DELETE FROM declined_requests WHERE TIMESTAMPDIFF(SECOND, created_at, NOW()) >= 30";
-                error_log("Executing query: " . $declinedQuery);
-                $result = $this->conn->query($declinedQuery);
-                if ($result) {
-                    $deleted_count = $this->conn->affected_rows;
-                    error_log("Successfully deleted " . $deleted_count . " old declined requests");
-                } else {
-                    error_log("Error deleting old declined requests: " . $this->conn->error);
-                }
-            }
-            
-            // Commit transaction
+
             $this->conn->commit();
             error_log("Transaction committed successfully");
             
@@ -1632,61 +1420,27 @@ class DatabaseOperations {
                 'declined' => []
             ];
 
-            // Get pending complaints from the 'complaints' table
-            $pending_sql = "SELECT complaintID, type, message, userID, complained_person, status, created_at FROM complaints WHERE userID = ? AND status = 'pending' ORDER BY created_at DESC";
-            $stmt_pending = $this->conn->prepare($pending_sql);
-            if ($stmt_pending === false) {
-                error_log("Pending prepare failed: " . $this->conn->error);
-            } else {
-                $stmt_pending->bind_param("i", $userID);
-                $stmt_pending->execute();
-                $result_pending = $stmt_pending->get_result();
-                error_log("Pending query returned rows: " . $result_pending->num_rows);
-                while ($row = $result_pending->fetch_assoc()) {
-                    $row['status'] = 'pending'; // Force status for frontend
-                    $complaints['pending'][] = $row;
-                    error_log("Fetched pending complaint: " . json_encode($row));
-                }
-                $stmt_pending->close();
+            $sql = "SELECT complaintID, type, message, userID, complained_person, status, staff_comment, created_at 
+                    FROM complaints 
+                    WHERE userID = ?
+                    ORDER BY created_at DESC";
+            $stmt = $this->conn->prepare($sql);
+            if (!$stmt) {
+                throw new Exception("Prepare failed: " . $this->conn->error);
             }
+            $stmt->bind_param("i", $userID);
+            $stmt->execute();
+            $result = $stmt->get_result();
 
-            // Get resolved complaints from the 'approved_complaints' table
-            $resolved_sql = "SELECT complaintID, type, message, userID, complained_person, status, created_at, staff_comment FROM approved_complaints WHERE userID = ? ORDER BY created_at DESC";
-            $stmt_resolved = $this->conn->prepare($resolved_sql);
-            if ($stmt_resolved === false) {
-                error_log("Resolved prepare failed: " . $this->conn->error);
-            } else {
-                $stmt_resolved->bind_param("i", $userID);
-                $stmt_resolved->execute();
-                $result_resolved = $stmt_resolved->get_result();
-                error_log("Resolved query returned rows: " . $result_resolved->num_rows);
-                while ($row = $result_resolved->fetch_assoc()) {
-                    $row['status'] = 'resolved'; // Force status for frontend
-                    $complaints['resolved'][] = $row;
-                    error_log("Fetched resolved complaint: " . json_encode($row));
+            while ($row = $result->fetch_assoc()) {
+                $statusKey = strtolower($row['status']);
+                if (!isset($complaints[$statusKey])) {
+                    $complaints[$statusKey] = [];
                 }
-                $stmt_resolved->close();
+                $complaints[$statusKey][] = $row;
             }
+            $stmt->close();
 
-            // Get declined complaints from the 'declined_complaints' table
-            $declined_sql = "SELECT complaintID, type, message, userID, complained_person, status, created_at, staff_comment FROM declined_complaints WHERE userID = ? ORDER BY created_at DESC";
-            $stmt_declined = $this->conn->prepare($declined_sql);
-            if ($stmt_declined === false) {
-                error_log("Declined prepare failed: " . $this->conn->error);
-            } else {
-                $stmt_declined->bind_param("i", $userID);
-                $stmt_declined->execute();
-                $result_declined = $stmt_declined->get_result();
-                error_log("Declined query returned rows: " . $result_declined->num_rows);
-                while ($row = $result_declined->fetch_assoc()) {
-                    $row['status'] = 'declined'; // Force status for frontend
-                    $complaints['declined'][] = $row;
-                    error_log("Fetched declined complaint: " . json_encode($row));
-                }
-                $stmt_declined->close();
-            }
-
-            error_log("Returning complaints: " . json_encode($complaints));
             return $complaints;
         } catch (Exception $e) {
             error_log("Error in getComplaintsByUserID: " . $e->getMessage());
@@ -1698,10 +1452,10 @@ class DatabaseOperations {
         }
     }
 
-    public function updateComplaintStatus($complaintID, $status) {
-        $sql = "UPDATE complaints SET status = ? WHERE complaintID = ?";
+    public function updateComplaintStatus($complaintID, $status, $staff_comment = null) {
+        $sql = "UPDATE complaints SET status = ?, staff_comment = ?, updated_at = NOW() WHERE complaintID = ?";
         $stmt = $this->conn->prepare($sql);
-        $stmt->bind_param("si", $status, $complaintID);
+        $stmt->bind_param("ssi", $status, $staff_comment, $complaintID);
         return $stmt->execute();
     }
 
@@ -1779,58 +1533,20 @@ class DatabaseOperations {
         try {
             error_log("Starting deleteOldComplaints function");
             
-            // Start transaction
             $this->conn->begin_transaction();
             
-            // Check if approved_complaints table exists
-            $check_approved = "SHOW TABLES LIKE 'approved_complaints'";
-            $approved_exists = $this->conn->query($check_approved)->num_rows > 0;
-            error_log("approved_complaints table exists: " . ($approved_exists ? "yes" : "no"));
-            
-            if ($approved_exists) {
-                // Count records before deletion
-                $count_query = "SELECT COUNT(*) as count FROM approved_complaints";
-                $count_result = $this->conn->query($count_query);
-                $count_row = $count_result->fetch_assoc();
-                error_log("Total approved complaints before deletion: " . $count_row['count']);
-                
-                // Delete approved complaints older than 30 seconds
-                $approvedQuery = "DELETE FROM approved_complaints WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 SECOND)";
-                $result = $this->conn->query($approvedQuery);
-                if ($result) {
-                    $deleted_count = $this->conn->affected_rows;
-                    error_log("Successfully deleted " . $deleted_count . " old approved complaints");
-                }
+            $deleteQuery = "DELETE FROM complaints WHERE status IN ('resolved','declined','RESOLVED','DECLINED') AND created_at < DATE_SUB(NOW(), INTERVAL 30 SECOND)";
+            $result = $this->conn->query($deleteQuery);
+            if ($result) {
+                $deleted_count = $this->conn->affected_rows;
+                error_log("Successfully deleted " . $deleted_count . " old handled complaints");
             }
             
-            // Check if declined_complaints table exists
-            $check_declined = "SHOW TABLES LIKE 'declined_complaints'";
-            $declined_exists = $this->conn->query($check_declined)->num_rows > 0;
-            error_log("declined_complaints table exists: " . ($declined_exists ? "yes" : "no"));
-            
-            if ($declined_exists) {
-                // Count records before deletion
-                $count_query = "SELECT COUNT(*) as count FROM declined_complaints";
-                $count_result = $this->conn->query($count_query);
-                $count_row = $count_result->fetch_assoc();
-                error_log("Total declined complaints before deletion: " . $count_row['count']);
-                
-                // Delete declined complaints older than 30 seconds
-                $declinedQuery = "DELETE FROM declined_complaints WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 SECOND)";
-                $result = $this->conn->query($declinedQuery);
-                if ($result) {
-                    $deleted_count = $this->conn->affected_rows;
-                    error_log("Successfully deleted " . $deleted_count . " old declined complaints");
-                }
-            }
-            
-            // Commit transaction
             $this->conn->commit();
             error_log("Transaction committed successfully for complaints cleanup");
             return true;
             
         } catch (Exception $e) {
-            // Rollback transaction on error
             $this->conn->rollback();
             error_log("Error in deleteOldComplaints: " . $e->getMessage());
             error_log("Stack trace: " . $e->getTraceAsString());

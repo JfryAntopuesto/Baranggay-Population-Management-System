@@ -548,3 +548,82 @@
 [10-Dec-2025 16:41:50 Europe/Berlin] Fetched pending complaints count: 0
 [10-Dec-2025 16:41:50 Europe/Berlin] Fetched 1 recent announcements with barangay name.
 [10-Dec-2025 16:41:50 Europe/Berlin] Response sent successfully.
+[12-Dec-2025 14:23:07 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:07 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:07 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:07 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:07 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:07 Europe/Berlin] Fetching counts and announcements...
+[12-Dec-2025 14:23:07 Europe/Berlin] Fetched pending requests count: 0
+[12-Dec-2025 14:23:07 Europe/Berlin] Fetched pending appointments count: 0
+[12-Dec-2025 14:23:07 Europe/Berlin] Fetched pending complaints count: 0
+[12-Dec-2025 14:23:07 Europe/Berlin] Fetched 0 recent announcements with barangay name.
+[12-Dec-2025 14:23:07 Europe/Berlin] Response sent successfully.
+[12-Dec-2025 14:23:08 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:08 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:08 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:08 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:08 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:08 Europe/Berlin] Fetching counts and announcements...
+[12-Dec-2025 14:23:08 Europe/Berlin] Fetched pending requests count: 0
+[12-Dec-2025 14:23:08 Europe/Berlin] Fetched pending appointments count: 0
+[12-Dec-2025 14:23:08 Europe/Berlin] Fetched pending complaints count: 0
+[12-Dec-2025 14:23:08 Europe/Berlin] Fetched 0 recent announcements with barangay name.
+[12-Dec-2025 14:23:08 Europe/Berlin] Response sent successfully.
+[12-Dec-2025 14:23:14 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:14 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:14 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:14 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:14 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:14 Europe/Berlin] Fetching counts and announcements...
+[12-Dec-2025 14:23:14 Europe/Berlin] Fetched pending requests count: 0
+[12-Dec-2025 14:23:14 Europe/Berlin] Fetched pending appointments count: 0
+[12-Dec-2025 14:23:14 Europe/Berlin] Fetched pending complaints count: 0
+[12-Dec-2025 14:23:14 Europe/Berlin] Fetched 0 recent announcements with barangay name.
+[12-Dec-2025 14:23:14 Europe/Berlin] Response sent successfully.
+[12-Dec-2025 14:23:16 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:16 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:16 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:16 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:16 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:16 Europe/Berlin] Fetching counts and announcements...
+[12-Dec-2025 14:23:16 Europe/Berlin] Fetched pending requests count: 0
+[12-Dec-2025 14:23:16 Europe/Berlin] Fetched pending appointments count: 0
+[12-Dec-2025 14:23:16 Europe/Berlin] Fetched pending complaints count: 0
+[12-Dec-2025 14:23:16 Europe/Berlin] Fetched 0 recent announcements with barangay name.
+[12-Dec-2025 14:23:16 Europe/Berlin] Response sent successfully.
+[12-Dec-2025 14:23:17 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:17 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:17 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:17 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:17 Europe/Berlin] Database connection successful
+[12-Dec-2025 14:23:17 Europe/Berlin] Fetching counts and announcements...
+[12-Dec-2025 14:23:17 Europe/Berlin] Fetched pending requests count: 0
+[12-Dec-2025 14:23:17 Europe/Berlin] Fetched pending appointments count: 0
+[12-Dec-2025 14:23:17 Europe/Berlin] Fetched pending complaints count: 0
+[12-Dec-2025 14:23:17 Europe/Berlin] Fetched 0 recent announcements with barangay name.
+[12-Dec-2025 14:23:17 Europe/Berlin] Response sent successfully.
+[12-Dec-2025 14:23:35 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:35 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:35 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown database 'baranggay_population_management' in C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php:10
+Stack trace:
+#0 C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php(10): mysqli->__construct('localhost', 'root', 'root', 'baranggay_popul...')
+#1 C:\xampp\htdocs\Baranggay-Population-Management-System\source_code\Staff\staff-dashboard-handler.php(24): include('C:\\xampp\\htdocs...')
+#2 {main}
+  thrown in C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php on line 10
+[12-Dec-2025 14:23:48 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:48 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:48 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown database 'baranggay_population_management' in C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php:10
+Stack trace:
+#0 C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php(10): mysqli->__construct('localhost', 'root', 'root', 'baranggay_popul...')
+#1 C:\xampp\htdocs\Baranggay-Population-Management-System\source_code\Staff\staff-dashboard-handler.php(24): include('C:\\xampp\\htdocs...')
+#2 {main}
+  thrown in C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php on line 10
+[12-Dec-2025 14:23:49 Europe/Berlin] staff-dashboard-handler.php accessed.
+[12-Dec-2025 14:23:49 Europe/Berlin] Attempting database connection to baranggay_population_management at localhost
+[12-Dec-2025 14:23:49 Europe/Berlin] PHP Fatal error:  Uncaught mysqli_sql_exception: Unknown database 'baranggay_population_management' in C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php:10
+Stack trace:
+#0 C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php(10): mysqli->__construct('localhost', 'root', 'root', 'baranggay_popul...')
+#1 C:\xampp\htdocs\Baranggay-Population-Management-System\source_code\Staff\staff-dashboard-handler.php(24): include('C:\\xampp\\htdocs...')
+#2 {main}
+  thrown in C:\xampp\htdocs\Baranggay-Population-Management-System\database\database-connection.php on line 10
