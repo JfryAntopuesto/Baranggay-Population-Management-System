@@ -9,6 +9,7 @@ class person
     protected $role;
     private $birthdate;
     private $gender;
+    private $email;
     private $modID;
 
     // Getter and Setter for fName
@@ -103,6 +104,17 @@ class person
     public function setModID($modID)
     {
         $this->modID = $modID;
+    }
+
+    // Getter and Setter for email
+    public function getEmail()
+    {
+        return $this->email;
+    }
+
+    public function setEmail($email)
+    {
+        $this->email = $email;
     }
 }
 

@@ -14,34 +14,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $person->setLName($_POST['lastname']);
     $person->setMName($_POST['middlename']);
     $person->setBirthdate($_POST['birthdate']);
+    // Sanitize and validate email
+    $email_input = trim($_POST['email']);
+    if (!filter_var($email_input, FILTER_VALIDATE_EMAIL)) {
+        $error_message = "Invalid email address!";
+    }
+    $person->setEmail($email_input);
     $person->setUsername($_POST['username']);
     $person->setPassword($_POST['password']);
     $confirmPassword = $_POST['confirmPassword'];
 
-    // Check if passwords match
-    if ($person->getPassword() !== $confirmPassword) {
-        $error_message = "Passwords do not match!";
-    } else {
-        // Check if username already exists
-        if ($db->checkUsernameExists($person->getUsername())) {
-            $error_message = "Username already exists!";
+    // Only proceed if no error from previous validation (like invalid email)
+    if (!isset($error_message)) {
+        // Check if passwords match
+        if ($person->getPassword() !== $confirmPassword) {
+            $error_message = "Passwords do not match!";
         } else {
-            // Insert new user using getters
-            if ($db->insertUser(
-                $person->getFName(),
-                $person->getLName(),
-                $person->getMName(),
-                $person->getBirthdate(),
-                $person->getUsername(),
-                $person->getPassword()
-            )) {
-                // Store the username in session for profile picture upload
-                $_SESSION['temp_username'] = $person->getUsername();
-                // Redirect to profile picture upload page
-                header("Location: upload-profile.php");
-                exit();
+            // Check if username already exists and email
+            if ($db->checkUsernameExists($person->getUsername())) {
+                $error_message = "Username already exists!";
+            } elseif ($db->getUserByEmail($person->getEmail())) {
+                $error_message = "Email already registered!";
             } else {
-                $error_message = "Registration failed. Please try again.";
+                // Insert new user using getters
+                if ($db->insertUser(
+                    $person->getFName(),
+                    $person->getLName(),
+                    $person->getMName(),
+                    $person->getBirthdate(),
+                    $person->getUsername(),
+                    $person->getPassword(),
+                    $person->getEmail()
+                )) {
+                    // Store the username in session for profile picture upload
+                    $_SESSION['temp_username'] = $person->getUsername();
+                    // Redirect to profile picture upload page
+                    header("Location: upload-profile.php");
+                    exit();
+                } else {
+                    $error_message = "Registration failed. Please try again.";
+                }
             }
         }
     }
@@ -266,6 +278,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 <input type="text" id="username" name="username" placeholder="Choose a username" required>
                 <div id="usernameError" class="error-message">Username should be 4-20 characters long and can only contain letters, numbers, and underscores</div>
 
+                <label>EMAIL:</label>
+                <input type="email" id="email" name="email" placeholder="Enter your email address" required>
+                <div id="emailError" class="error-message">Enter a valid email address</div>
+
                 <label>PASSWORD:</label>
                 <div class="password-container">
                     <input type="password" id="password" name="password" placeholder="Create a password" required>
@@ -337,6 +353,17 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 isValid = false;
             } else {
                 usernameError.style.display = 'none';
+            }
+
+            // Email validation
+            const email = document.getElementById('email');
+            const emailError = document.getElementById('emailError');
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email.value)) {
+                emailError.style.display = 'block';
+                isValid = false;
+            } else {
+                emailError.style.display = 'none';
             }
 
             // Password validation (removed special character requirement)
