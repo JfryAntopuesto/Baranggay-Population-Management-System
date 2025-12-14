@@ -141,6 +141,9 @@ CREATE TABLE IF NOT EXISTS complaints (
 -- ============================================
 -- Appointment Tables
 -- ============================================
+-- Note: All appointments are stored in a single table with a status column.
+-- Valid status values: 'pending', 'approved', 'declined'
+-- There are NO separate tables for approved_appointments or declined_appointments.
 
 CREATE TABLE IF NOT EXISTS appointments (
     appointment_id INT(11) AUTO_INCREMENT PRIMARY KEY,
@@ -170,23 +173,15 @@ CREATE TABLE IF NOT EXISTS announcement (
 -- Notification Tables
 -- ============================================
 
--- Unread notifications table
-CREATE TABLE IF NOT EXISTS unread_notifications (
+-- Notifications table (unified read/unread)
+CREATE TABLE IF NOT EXISTS notifications (
     notifID INT(11) AUTO_INCREMENT PRIMARY KEY,
     userID INT(11) NOT NULL,
     content TEXT NOT NULL,
     staff_comment TEXT,
+    is_read BOOLEAN NOT NULL DEFAULT FALSE,
     datetime TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Read notifications table
-CREATE TABLE IF NOT EXISTS read_notifications (
-    notifID INT(11) PRIMARY KEY,
-    userID INT(11) NOT NULL,
-    content TEXT NOT NULL,
-    staff_comment TEXT,
-    datetime TIMESTAMP NOT NULL,
+    read_at TIMESTAMP NULL,
     FOREIGN KEY (userID) REFERENCES user(userID) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -218,8 +213,9 @@ CREATE INDEX idx_complaints_user ON complaints(userID);
 CREATE INDEX idx_complaints_status ON complaints(status);
 
 -- Indexes for notifications
-CREATE INDEX idx_unread_notifications_user ON unread_notifications(userID);
-CREATE INDEX idx_read_notifications_user ON read_notifications(userID);
+CREATE INDEX idx_notifications_user ON notifications(userID);
+CREATE INDEX idx_notifications_is_read ON notifications(is_read);
+CREATE INDEX idx_notifications_datetime ON notifications(datetime);
 
 -- ============================================
 -- End of Schema

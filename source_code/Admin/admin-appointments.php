@@ -1,6 +1,17 @@
 <?php
+// Start output buffering for AJAX requests to prevent any output before JSON
+if (isset($_GET['ajax'])) {
+    ob_start();
+}
+
 session_start();
 if(!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'admin') {
+    if (isset($_GET['ajax'])) {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'Unauthorized']);
+        exit();
+    }
     header("Location: ../login.php");
     exit();
 }
@@ -19,27 +30,31 @@ function getAppointments($status) {
                             u.firstname, u.lastname, a.created_at
                      FROM appointments a 
                      JOIN user u ON a.userID = u.userID 
+                     WHERE a.status = 'pending'
                      ORDER BY a.appointment_date, a.appointment_time";
             break;
         case 'APPROVED':
             $query = "SELECT a.appointment_id, a.userID, a.appointment_date, a.appointment_time, a.purpose, 
-                            u.firstname, u.lastname, a.staff_comment, a.approved_at
-                     FROM approved_appointments a 
+                            u.firstname, u.lastname, a.staff_comment, a.updated_at as approved_at
+                     FROM appointments a 
                      JOIN user u ON a.userID = u.userID 
+                     WHERE a.status = 'approved'
                      ORDER BY a.appointment_date, a.appointment_time";
             break;
         case 'DECLINED':
             $query = "SELECT a.appointment_id, a.userID, a.appointment_date, a.appointment_time, a.purpose, 
-                            u.firstname, u.lastname, a.staff_comment, a.declined_at
-                     FROM declined_appointments a 
+                            u.firstname, u.lastname, a.staff_comment, a.updated_at as declined_at
+                     FROM appointments a 
                      JOIN user u ON a.userID = u.userID 
+                     WHERE a.status = 'declined'
                      ORDER BY a.appointment_date, a.appointment_time";
             break;
     }
 
     $result = $conn->query($query);
     if (!$result) {
-        return ['success' => false, 'error' => $conn->error];
+        error_log("SQL Error in getAppointments: " . $conn->error);
+        return ['success' => false, 'error' => 'Database query failed'];
     }
 
     $appointments = [];
@@ -75,9 +90,18 @@ function getAppointments($status) {
 
 // Handle AJAX requests
 if (isset($_GET['ajax'])) {
-    header('Content-Type: application/json');
-    $status = isset($_GET['status']) ? strtoupper($_GET['status']) : 'PENDING';
-    echo json_encode(getAppointments($status));
+    try {
+        // Clean any output that might have been generated
+        ob_clean();
+        header('Content-Type: application/json');
+        $status = isset($_GET['status']) ? strtoupper($_GET['status']) : 'PENDING';
+        $result = getAppointments($status);
+        echo json_encode($result);
+    } catch (Exception $e) {
+        ob_clean();
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'An error occurred: ' . $e->getMessage()]);
+    }
     exit();
 }
 ?>
