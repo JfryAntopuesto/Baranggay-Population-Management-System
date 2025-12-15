@@ -424,7 +424,7 @@ header("Pragma: no-cache");
     <header>
         <div style="display: flex; justify-content: space-between; align-items: center; padding: 0 20px;">
             <a href="../admin-dashboard.php" style="color: white; text-decoration: none; font-size: 16px; background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 5px; transition: background 0.3s;">← Back to Dashboard</a>
-            <span>BARANGAY POPULATION MANAGEMENT SYSTEM</span>
+            <span>BARANGAY DON MARTIN MARUNDAN POPULATION MANAGEMENT SYSTEM</span>
             <div style="width: 120px;"></div> <!-- Spacer for balance -->
         </div>
     </header>

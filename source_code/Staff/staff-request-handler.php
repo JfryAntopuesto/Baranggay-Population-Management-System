@@ -1,162 +1,176 @@
 <?php
-session_start();
+// Enable error reporting for debugging
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// Check if staff is logged in
-if (!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'staff') {
-    header('Content-Type: application/json');
-    echo json_encode(['error' => 'Unauthorized access']);
-    exit();
-}
-
-include '../../database/database-connection.php';
-include '../../database/database-operations.php';
-
+// Set JSON content type
 header('Content-Type: application/json');
 
+// Database connection handling
+require_once "../../database/database-connection.php";
+
+// Use the $conn variable from database-connection.php
+$db = $conn;
+
+try {
+    // Check if database connection was established
+    if (!isset($db) || !($db instanceof mysqli)) {
+        throw new Exception('Database connection not properly initialized');
+    }
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'error' => 'Database connection failed: ' . $e->getMessage()]);
+    exit;
+}
+
 // Get the action from the request
-$action = isset($_GET['action']) ? $_GET['action'] : '';
+$action = $_GET['action'] ?? '';
 
-if ($action === 'get_all_requests') {
-    try {
-        $db = new DatabaseOperations($conn);
-        
-        // Get pending requests
-        $pending_sql = "SELECT r.*, u.firstname, u.middlename, u.lastname 
-                       FROM requests r 
-                       JOIN user u ON r.userID = u.userID 
-                       WHERE r.status = 'pending' 
-                       ORDER BY r.created_at DESC";
-        $pending_result = $conn->query($pending_sql);
-        $pending_requests = [];
-        if ($pending_result && $pending_result->num_rows > 0) {
-            while ($row = $pending_result->fetch_assoc()) {
-                $pending_requests[] = $row;
+// Process the requested action
+try {
+    switch ($action) {
+        case 'get_all_requests':
+            // Get filter and search parameters if provided
+            $status = $_GET['status'] ?? '';
+            $search = $_GET['search'] ?? '';
+            
+            // Build the base query
+            $query = "SELECT r.*, 
+                             u.firstname, 
+                             u.middlename, 
+                             u.lastname
+                      FROM requests r
+                      JOIN user u ON r.userID = u.userID
+                      WHERE 1=1";
+            
+            $params = [];
+            $types = '';
+            
+            // Add status filter if provided
+            if (!empty($status) && $status !== 'all') {
+                $query .= " AND r.status = ?";
+                $params[] = $status;
+                $types .= 's';
             }
-        }
-
-        // Get finished requests
-        $finished_sql = "SELECT r.*, u.firstname, u.middlename, u.lastname 
-                        FROM approved_requests r 
-                        JOIN user u ON r.userID = u.userID 
-                        ORDER BY r.created_at DESC";
-        $finished_result = $conn->query($finished_sql);
-        $finished_requests = [];
-        if ($finished_result && $finished_result->num_rows > 0) {
-            while ($row = $finished_result->fetch_assoc()) {
-                $finished_requests[] = $row;
+            
+            // Add search filter if provided
+            if (!empty($search)) {
+                $searchTerm = "%$search%";
+                $query .= " AND (r.requestID LIKE ? 
+                              OR r.type LIKE ? 
+                              OR u.firstname LIKE ? 
+                              OR u.lastname LIKE ?)";
+                $params = array_merge($params, [$searchTerm, $searchTerm, $searchTerm, $searchTerm]);
+                $types .= str_repeat('s', 4);
             }
-        }
-
-        // Get declined requests
-        $declined_sql = "SELECT r.*, u.firstname, u.middlename, u.lastname 
-                        FROM declined_requests r 
-                        JOIN user u ON r.userID = u.userID 
-                        ORDER BY r.created_at DESC";
-        $declined_result = $conn->query($declined_sql);
-        $declined_requests = [];
-        if ($declined_result && $declined_result->num_rows > 0) {
-            while ($row = $declined_result->fetch_assoc()) {
-                $declined_requests[] = $row;
+            
+            // Add sorting
+            $query .= " ORDER BY r.created_at DESC";
+            
+            // Prepare and execute the query
+            $stmt = $db->prepare($query);
+            
+            if (!empty($params)) {
+                $stmt->bind_param($types, ...$params);
             }
-        }
-
-        echo json_encode([
-            'pending' => $pending_requests,
-            'finished' => $finished_requests,
-            'declined' => $declined_requests
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['error' => $e->getMessage()]);
-    }
-} else if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Handle POST request for updating request status
-    $data = json_decode(file_get_contents('php://input'), true);
-    
-    if (!isset($data['requestID'], $data['status'])) {
-        echo json_encode(['error' => 'Missing requestID or status']);
-        exit();
-    }
-
-    $requestID = $data['requestID'];
-    $status = $data['status'];
-    $staff_comment = isset($data['staff_comment']) ? $data['staff_comment'] : '';
-
-    try {
-        $db = new DatabaseOperations($conn);
-        
-        // Get request data first
-        $request_data = $db->getRequestByID($requestID);
-        if (!$request_data) {
-            throw new Exception("Request not found");
-        }
-
-        // Start transaction
-        $conn->begin_transaction();
-
-        try {
-            if ($status === 'FINISHED') {
-                // Insert into approved_requests table
-                $insert_sql = "INSERT INTO approved_requests (requestID, type, message, userID, status, created_at, staff_comment)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-                $insert_stmt = $conn->prepare($insert_sql);
-                $insert_stmt->bind_param("ississs",
-                    $request_data['requestID'],
-                    $request_data['type'],
-                    $request_data['message'],
-                    $request_data['userID'],
-                    $status,
-                    $request_data['created_at'],
-                    $staff_comment
-                );
-                $insert_stmt->execute();
-                $insert_stmt->close();
-
-                // Add notification
-                $notification_content = "Your " . $request_data['type'] . " request has been approved.\n\nSTAFF RESPONSE:\n" . $staff_comment;
-                $db->addNotification($request_data['userID'], $notification_content, $staff_comment);
-            } else if ($status === 'DECLINED') {
-                // Insert into declined_requests table
-                $insert_sql = "INSERT INTO declined_requests (requestID, type, message, userID, status, created_at, staff_comment)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)";
-                $insert_stmt = $conn->prepare($insert_sql);
-                $insert_stmt->bind_param("ississs",
-                    $request_data['requestID'],
-                    $request_data['type'],
-                    $request_data['message'],
-                    $request_data['userID'],
-                    $status,
-                    $request_data['created_at'],
-                    $staff_comment
-                );
-                $insert_stmt->execute();
-                $insert_stmt->close();
-
-                // Add notification
-                $notification_content = "Your " . $request_data['type'] . " request has been declined.\n\nSTAFF RESPONSE:\n" . $staff_comment;
-                $db->addNotification($request_data['userID'], $notification_content, $staff_comment);
+            
+            if (!$stmt->execute()) {
+                throw new Exception('Failed to execute query: ' . $stmt->error);
             }
+            
+            $result = $stmt->get_result();
+            
+            $requests = [];
+            while ($row = $result->fetch_assoc()) {
+                // Format the name with proper handling of middle name
+                $fullName = $row['firstname'];
+                if (!empty($row['middlename'])) {
+                    $fullName .= ' ' . $row['middlename'];
+                }
+                $fullName .= ' ' . $row['lastname'];
+                
+                // Add formatted name to the request data
+                $row['requester_name'] = $fullName;
+                $requests[] = $row;
+            }
+            
+           // Categorize requests by status
+$pending = [];
+$finished = [];
+$declined = [];
 
-            // Delete from requests table
-            $delete_sql = "DELETE FROM requests WHERE requestID = ?";
-            $delete_stmt = $conn->prepare($delete_sql);
-            $delete_stmt->bind_param("i", $requestID);
-            $delete_stmt->execute();
-            $delete_stmt->close();
-
-            // Commit transaction
-            $conn->commit();
-            echo json_encode(['success' => true]);
-        } catch (Exception $e) {
-            // Rollback transaction on error
-            $conn->rollback();
-            throw $e;
-        }
-    } catch (Exception $e) {
-        echo json_encode(['error' => $e->getMessage()]);
+foreach ($requests as $request) {
+    $status = strtolower($request['status']);
+    if ($status === 'finished') {
+        $finished[] = $request;
+    } elseif ($status === 'declined') {
+        $declined[] = $request;
+    } else { // pending and any other status
+        $pending[] = $request;
     }
 }
 
-$conn->close();
-?> 
+echo json_encode([
+    'success' => true,
+    'pending' => $pending,
+    'finished' => $finished,
+    'declined' => $declined
+]);
+            break;
+            
+        case 'update_request_status':
+            // Verify required parameters
+            if (!isset($_POST['requestID'], $_POST['status'])) {
+                throw new Exception('Missing required parameters');
+            }
+            
+            $requestId = $_POST['requestID'];
+            $status = $_POST['status'];
+            $staffNotes = $_POST['staff_comment'] ?? '';
+            
+            // Get staff ID from session (you'll need to set this when staff logs in)
+            session_start();
+            $staffId = $_SESSION['modID'] ?? null;
+            
+            // Validate status
+            $validStatuses = ['pending', 'processing', 'finished', 'declined'];
+            if (!in_array(strtolower($status), $validStatuses)) {
+                throw new Exception('Invalid status. Must be one of: ' . implode(', ', $validStatuses));
+            }
+            
+            // Prepare the update query
+            $query = "UPDATE requests 
+                     SET status = ?, 
+                         staff_comment = ?,
+                         updated_at = NOW() 
+                     WHERE requestID = ?";
+            
+            $stmt = $db->prepare($query);
+            $stmt->bind_param('sss', $status, $staffNotes, $requestId);
+            
+            if (!$stmt->execute()) {
+                throw new Exception('Failed to update request status: ' . $stmt->error);
+            }
+            
+            echo json_encode([
+                'success' => true,
+                'message' => 'Request status updated successfully'
+            ]);
+            break;
+            
+        default:
+            throw new Exception('Invalid action');
+    }
+    
+} catch (Exception $e) {
+    http_response_code(400);
+    echo json_encode([
+        'success' => false,
+        'error' => $e->getMessage()
+    ]);
+} finally {
+    // Close database connection
+    if (isset($db)) {
+        $db->close();
+    }
+}

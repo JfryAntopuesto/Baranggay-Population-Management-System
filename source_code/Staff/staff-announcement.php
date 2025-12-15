@@ -594,7 +594,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['action']) && $_GET['act
 
 <body>
     <header>
-        BARANGAY POPULATION MANAGEMENT SYSTEM
+        BARANGAY DON MARTIN MARUNDAN POPULATION MANAGEMENT SYSTEM
         <button class="logout-btn" onclick="location.href='../logout.php'">LOGOUT</button>
     </header>
     <div class="container">

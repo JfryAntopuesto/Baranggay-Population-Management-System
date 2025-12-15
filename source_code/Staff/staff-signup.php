@@ -205,7 +205,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     </style>
 </head>
 <body>
-    <header>BARANGAY POPULATION MANAGEMENT SYSTEM - STAFF REGISTRATION</header>
+    <header>BARANGAY DON MARTIN MARUNDAN POPULATION MANAGEMENT SYSTEM - STAFF REGISTRATION</header>
 
     <div class="container">
         <h1 class="welcome">STAFF<br>SIGNUP</h1>

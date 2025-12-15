@@ -360,7 +360,7 @@ header("Pragma: no-cache");
 </head>
 <body>
     <header>
-        BARANGAY POPULATION MANAGEMENT SYSTEM
+        BARANGAY DON MARTIN MARUNDAN POPULATION MANAGEMENT SYSTEM
     </header>
     <div class="container">
         <div class="left-panel">
@@ -511,10 +511,21 @@ header("Pragma: no-cache");
 
         function fetchRequests() {
             fetch('staff-request-handler.php?action=get_all_requests')
-                .then(response => response.json())
+                .then(response => {
+                    // Check if response is actually JSON
+                    const contentType = response.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        return response.text().then(text => {
+                            console.error('Non-JSON response received:', text.substring(0, 200));
+                            throw new Error('Server returned non-JSON response. Check console for details.');
+                        });
+                    }
+                    return response.json();
+                })
                 .then(data => {
                     if (data.error) {
                         console.error('Error fetching requests:', data.error);
+                        alert('Error fetching requests: ' + data.error);
                         return;
                     }
                     // Assuming data contains pending, finished, and declined requests
@@ -524,7 +535,8 @@ header("Pragma: no-cache");
                     renderRequests();
                 })
                 .catch(error => {
-                    console.error('Error:', error);
+                    console.error('Error fetching requests:', error);
+                    alert('Error fetching requests: ' + error.message);
                 });
         }
 

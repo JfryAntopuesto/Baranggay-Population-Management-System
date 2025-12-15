@@ -7,7 +7,6 @@ if(!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'staff') {
 }
 
 require_once '../../database/database-connection.php';
-require_once '../../database/database-operations.php';
 
 // Ensure no output before JSON response
 error_reporting(E_ALL);
@@ -20,8 +19,6 @@ try {
         throw new Exception("Connection failed: " . $conn->connect_error);
     }
 
-    $db = new DatabaseOperations($conn);
-    
     // Get status from query parameter
     $status = isset($_GET['status']) ? strtoupper($_GET['status']) : 'PENDING';
     
@@ -31,35 +28,17 @@ try {
     }
 
     // Get appointments based on status
-    $query = "";
-    switch($status) {
-        case 'PENDING':
-            $query = "SELECT a.*, u.firstname, u.lastname 
-                     FROM appointments a 
-                     JOIN user u ON a.userID = u.userID 
-                     ORDER BY a.appointment_date, a.appointment_time";
-            break;
-        case 'APPROVED':
-            $query = "SELECT a.*, u.firstname, u.lastname 
-                     FROM approved_appointments a 
-                     JOIN user u ON a.userID = u.userID 
-                     ORDER BY a.appointment_date, a.appointment_time";
-            break;
-        case 'DECLINED':
-            $query = "SELECT a.*, u.firstname, u.lastname 
-                     FROM declined_appointments a 
-                     JOIN user u ON a.userID = u.userID 
-                     ORDER BY a.appointment_date, a.appointment_time";
-            break;
-    }
+    $query = "SELECT a.*, u.firstname, u.lastname 
+             FROM appointments a 
+             JOIN user u ON a.userID = u.userID 
+             WHERE a.status = ?
+             ORDER BY a.appointment_date, a.appointment_time";
 
-    // Log the query for debugging
-    error_log("Executing query: " . $query);
-
-    $result = $conn->query($query);
-    if (!$result) {
-        throw new Exception("Query failed: " . $conn->error);
-    }
+    // Prepare and execute the query
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param('s', $status);
+    $stmt->execute();
+    $result = $stmt->get_result();
 
     $appointments = [];
     while ($row = $result->fetch_assoc()) {
@@ -71,12 +50,10 @@ try {
             'appointment_time' => $row['appointment_time'],
             'purpose' => $row['purpose'],
             'created_at' => $row['created_at'],
-            'staff_comment' => $row['staff_comment'] ?? null
+            'staff_comment' => $row['staff_comment'] ?? null,
+            'status' => $row['status']
         ];
     }
-
-    // Log the number of appointments found
-    error_log("Found " . count($appointments) . " appointments for status: " . $status);
 
     echo json_encode([
         'success' => true,
@@ -86,13 +63,13 @@ try {
 
 } catch (Exception $e) {
     error_log("Error in appointments.php: " . $e->getMessage());
+    http_response_code(500);
     echo json_encode([
         'success' => false,
-        'error' => $e->getMessage()
+        'error' => 'An error occurred while fetching appointments'
     ]);
 } finally {
     if (isset($conn)) {
         $conn->close();
     }
 }
-?> 

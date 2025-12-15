@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'GET' && isset($_GET['edit']) && isset($_GET[
         </style>
     </head>
     <body>
-        <header>BARANGAY POPULATION MANAGEMENT SYSTEM</header>
+        <header>BARANGAY DON MARTIN MARUNDAN POPULATION MANAGEMENT SYSTEM</header>
         <div class="form-container">
             <h2>Edit Household Member</h2>
             <form method="post">
