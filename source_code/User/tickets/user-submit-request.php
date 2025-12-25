@@ -59,14 +59,9 @@ try {
     $result = $db->createRequest($validatedType, $validatedMessage, $validatedUserID);
 
     if ($result) {
-        // Include factory pattern information in response
         echo json_encode([
             'success' => true, 
-            'message' => 'Request submitted successfully!',
-            'requestDetails' => $details,
-            'factoryUsed' => true,
-            'productClass' => get_class($requestObj),
-            'category' => isset($details['category']) ? $details['category'] : 'Unknown'
+            'message' => 'Submitted successfully.'
         ]);
     } else {
         echo json_encode(['success' => false, 'message' => 'Failed to submit request.']);

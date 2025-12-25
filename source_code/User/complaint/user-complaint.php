@@ -390,26 +390,7 @@ ini_set('display_errors', 1);
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Log factory pattern information to console
-                        console.log('✅ Factory Method Pattern Used!');
-                        console.log('Product Class:', data.productClass || 'N/A');
-                        console.log('Category:', data.category || 'N/A');
-                        console.log('Severity:', data.severity || 'N/A');
-                        console.log('Complaint Details:', data.complaintDetails || {});
-                        console.log('Factory Used:', data.factoryUsed ? 'Yes' : 'No');
-                        console.log('Needs Attention:', data.needsAttention ? 'Yes (High Severity)' : 'No');
-                        
-                        // Show success message with factory info
-                        let message = data.message;
-                        if (data.factoryUsed) {
-                            message += `\n\n[Factory Pattern: ${data.productClass}]`;
-                            message += `\n[Severity: ${data.severity ? data.severity.toUpperCase() : 'N/A'}]`;
-                            message += `\n[Category: ${data.category || 'N/A'}]`;
-                            if (data.needsAttention) {
-                                message += `\n\n⚠️ HIGH SEVERITY - Requires Immediate Attention!`;
-                            }
-                        }
-                        alert(message);
+                        alert('Submitted successfully.');
                         
                         // Clear the form
                         form.reset();

@@ -5,6 +5,7 @@ header('Content-Type: application/json');
 // Database connection
 include '../database/database-connection.php';
 include '../database/database-operations.php';
+include '../includes/event-listeners.php';
 
 // Create an instance of DatabaseOperations
 $db = new DatabaseOperations($conn);
@@ -72,6 +73,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     try {
         $content = $_POST['content'];
         if ($db->addAnnouncement($content)) {
+            // Dispatch announcement event to email all subscribers (observer)
+            $dispatcher = get_event_dispatcher();
+            $dispatcher->dispatch('announcement_created', [
+                'db' => $db,
+                'content' => $content
+            ]);
             echo json_encode(['success' => true]);
         } else {
             throw new Exception("Failed to save announcement");

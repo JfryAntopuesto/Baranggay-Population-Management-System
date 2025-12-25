@@ -17,7 +17,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
 
     if ($type && $message) {
         $request->createRequest($type, $message, $userID);
-        $_SESSION['request_message'] = "Request submitted successfully!";
+        $_SESSION['request_message'] = "Submitted successfully.";
         header("Location: " . $_SERVER['PHP_SELF']);
         exit();
     } else {
@@ -340,19 +340,7 @@ ini_set('display_errors', 1);
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Log factory pattern information to console
-                    console.log('✅ Factory Method Pattern Used!');
-                    console.log('Product Class:', data.productClass || 'N/A');
-                    console.log('Category:', data.category || 'N/A');
-                    console.log('Request Details:', data.requestDetails || {});
-                    console.log('Factory Used:', data.factoryUsed ? 'Yes' : 'No');
-                    
-                    // Show success message with factory info
-                    let message = data.message;
-                    if (data.factoryUsed && data.category) {
-                        message += `\n\n[Factory Pattern: ${data.productClass} - Category: ${data.category}]`;
-                    }
-                    alert(message);
+                    alert('Submitted successfully.');
                     
                     // Clear the form
                     form.reset();

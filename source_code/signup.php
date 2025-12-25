@@ -23,6 +23,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $person->setUsername($_POST['username']);
     $person->setPassword($_POST['password']);
     $confirmPassword = $_POST['confirmPassword'];
+    $email_notifications = isset($_POST['email_notifications']) ? true : false;
 
     // Only proceed if no error from previous validation (like invalid email)
     if (!isset($error_message)) {
@@ -44,7 +45,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     $person->getBirthdate(),
                     $person->getUsername(),
                     $person->getPassword(),
-                    $person->getEmail()
+                    $person->getEmail(),
+                    $email_notifications
                 )) {
                     // Store the username in session for profile picture upload
                     $_SESSION['temp_username'] = $person->getUsername();
@@ -299,6 +301,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </span>
                 </div>
                 <div id="confirmPasswordError" class="error-message">Passwords do not match</div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="email_notifications" name="email_notifications" value="1" style="width: auto; margin-right: 8px; margin-bottom: 0;">
+                        <span style="font-weight: normal; color: #333;">Allow this system to send an email</span>
+                    </label>
+                    <div style="font-size: 12px; color: #666; margin-top: 5px; margin-left: 24px;">
+                        You will receive email notifications when there are changes to your requests, complaints, and appointments.
+                    </div>
+                </div>
 
                 <?php if (isset($error_message)): ?>
                     <div style="color: red; margin-bottom: 15px; text-align: center;"><?php echo $error_message; ?></div>

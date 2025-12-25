@@ -94,13 +94,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             
             echo json_encode([
                 'success' => true,
-                'message' => 'Complaint submitted successfully!',
-                'severity' => $severity,
-                'needsAttention' => ($severity === 'high'),
-                'factoryUsed' => true,
-                'productClass' => get_class($complaintObj),
-                'complaintDetails' => $details,
-                'category' => isset($details['category']) ? $details['category'] : 'Unknown'
+                'message' => 'Submitted successfully.'
             ]);
         } else {
             echo json_encode([

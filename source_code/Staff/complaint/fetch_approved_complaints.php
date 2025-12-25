@@ -3,9 +3,9 @@ include '../../../database/database-connection.php';
 header('Content-Type: application/json');
 
 $sql = "SELECT c.*, u.firstname, u.middlename, u.lastname 
-        FROM approved_complaints c 
+        FROM complaints c 
         JOIN user u ON c.userID = u.userID 
-        WHERE c.status = 'resolved' OR c.status = 'finished' 
+        WHERE c.status = 'resolved' 
         ORDER BY c.created_at DESC";
 $result = $conn->query($sql);
 $approvedComplaints = array();

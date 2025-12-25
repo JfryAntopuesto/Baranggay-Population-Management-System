@@ -2,10 +2,11 @@
 include '../../../database/database-connection.php';
 header('Content-Type: application/json');
 
-$sql = "SELECT ac.*, u.firstname, u.middlename, u.lastname 
-        FROM approved_complaints ac 
-        JOIN user u ON ac.userID = u.userID 
-        ORDER BY ac.created_at DESC";
+$sql = "SELECT c.*, u.firstname, u.middlename, u.lastname 
+        FROM complaints c 
+        JOIN user u ON c.userID = u.userID 
+        WHERE c.status = 'resolved' 
+        ORDER BY c.created_at DESC";
 $result = $conn->query($sql);
 $approvedComplaints = array();
 if ($result && $result->num_rows > 0) {

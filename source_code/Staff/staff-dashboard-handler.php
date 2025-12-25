@@ -44,8 +44,8 @@ $data = [
 try {
     error_log('Fetching counts and announcements...'); // Log before fetching
 
-    // Get pending requests count (count rows in the requests table)
-    $sql = "SELECT COUNT(*) as count FROM requests";
+    // Get pending requests count (only count requests with status = 'pending')
+    $sql = "SELECT COUNT(*) as count FROM requests WHERE status = 'pending'";
     $result = $conn->query($sql);
     if ($result) {
         $row = $result->fetch_assoc();
@@ -53,8 +53,8 @@ try {
         error_log('Fetched pending requests count: ' . $data['pendingRequests']);
     }
 
-    // Get pending appointments count (count rows in the appointments table)
-    $sql = "SELECT COUNT(*) as count FROM appointments";
+    // Get pending appointments count (only count appointments with status = 'pending')
+    $sql = "SELECT COUNT(*) as count FROM appointments WHERE status = 'pending'";
     $result = $conn->query($sql);
     if ($result) {
         $row = $result->fetch_assoc();
@@ -62,8 +62,8 @@ try {
         error_log('Fetched pending appointments count: ' . $data['pendingAppointments']);
     }
 
-    // Get pending complaints count (count rows in the complaints table)
-    $sql = "SELECT COUNT(*) as count FROM complaints";
+    // Get pending complaints count (only count complaints with status = 'pending')
+    $sql = "SELECT COUNT(*) as count FROM complaints WHERE status = 'pending'";
     $result = $conn->query($sql);
     if ($result) {
         $row = $result->fetch_assoc();

@@ -549,34 +549,51 @@ header("Pragma: no-cache");
                 return;
             }
 
-            fetch('staff-request-handler.php', {
+            fetch('staff-request-handler.php?action=update_request_status', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
+                    action: 'update_request_status',
                     requestID: requestID,
                     status: status,
                     staff_comment: comment
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                // Check if response is ok
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                // Check content type
+                const contentType = response.headers.get("content-type");
+                if (!contentType || !contentType.includes("application/json")) {
+                    return response.text().then(text => {
+                        console.error('Non-JSON response:', text);
+                        throw new Error('Server returned non-JSON response. Check server logs for details.');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success) {
                     console.log('Request status updated successfully!', data);
                     closeModal();
                     // Refresh badge counts after updating status
                     fetchPendingCounts();
+                    // Refresh the requests list
+                    fetchRequests();
                 } else {
                     console.error('Error updating request status:', data.error);
-                    alert('Failed to update request status: ' + data.error);
+                    alert('Failed to update request status: ' + (data.error || 'Unknown error'));
                     // Still try to fetch requests to update the list
                     fetchRequests();
                 }
             })
             .catch(error => {
                 console.error('Fetch error:', error);
-                alert('An error occurred while updating request status.');
+                alert('An error occurred while updating request status: ' + error.message);
                 // Still try to fetch requests to update the list
                 fetchRequests();
             });

@@ -13,32 +13,12 @@ ob_clean();
 header('Content-Type: application/json');
 
 try {
-    // First check if the table exists
-    $check_table = "SHOW TABLES LIKE 'approved_requests'";
-    $table_result = $conn->query($check_table);
-    
-    if ($table_result->num_rows === 0) {
-        // Table doesn't exist, create it
-        $create_table = "CREATE TABLE approved_requests (
-            requestID INT PRIMARY KEY AUTO_INCREMENT,
-            type VARCHAR(255) NOT NULL,
-            message TEXT NOT NULL,
-            userID INT NOT NULL,
-            status VARCHAR(50) NOT NULL,
-            created_at DATETIME NOT NULL,
-            staff_comment TEXT,
-            FOREIGN KEY (userID) REFERENCES user(userID)
-        )";
-        
-        if (!$conn->query($create_table)) {
-            throw new Exception("Failed to create approved_requests table: " . $conn->error);
-        }
-    }
-
-    $sql = "SELECT t.*, u.firstname, u.middlename, u.lastname 
-            FROM approved_requests t 
-            JOIN user u ON t.userID = u.userID 
-            ORDER BY t.created_at DESC";
+    // Use the requests table with status filter
+    $sql = "SELECT r.*, u.firstname, u.middlename, u.lastname 
+            FROM requests r 
+            JOIN user u ON r.userID = u.userID 
+            WHERE r.status IN ('approved', 'FINISHED', 'finished')
+            ORDER BY r.created_at DESC";
             
     $result = $conn->query($sql);
 

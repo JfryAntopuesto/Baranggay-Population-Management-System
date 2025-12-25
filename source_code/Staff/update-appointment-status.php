@@ -8,6 +8,7 @@ if(!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'staff') {
 
 require_once '../../database/database-connection.php';
 require_once '../../database/database-operations.php';
+require_once '../../includes/event-listeners.php';
 
 header('Content-Type: application/json');
 
@@ -65,8 +66,26 @@ try {
         $notification_result = $db->addNotification(
             $appointment['userID'],
             $notification_content,
-            'appointment_update'
+            $staff_comment
         );
+
+        // Send email notification via observer if user enabled
+        $emailPrefs = $db->getUserEmailPreferences($appointment['userID']);
+        if ($emailPrefs) {
+            $emailEnabled = ($emailPrefs['email_notifications'] == 1 || $emailPrefs['email_notifications'] === true || $emailPrefs['email_notifications'] === '1') && !empty($emailPrefs['email']);
+            if ($emailEnabled) {
+                $dispatcher = get_event_dispatcher();
+                $dispatcher->dispatch('appointment_status_changed', [
+                    'email' => $emailPrefs['email'],
+                    'appointment_date' => $appointment['appointment_date'],
+                    'appointment_time' => $appointment['appointment_time'],
+                    'status' => strtolower($status),
+                    'staff_comment' => $staff_comment
+                ]);
+            } else {
+                error_log("Email notification skipped - Not enabled or no email address");
+            }
+        }
 
         // If WebSocket server is running, send real-time notification
         if ($notification_result) {

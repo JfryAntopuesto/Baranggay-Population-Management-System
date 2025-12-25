@@ -3,7 +3,7 @@ include '../../../database/database-connection.php';
 header('Content-Type: application/json');
 
 $sql = "SELECT c.*, u.firstname, u.middlename, u.lastname 
-        FROM declined_complaints c 
+        FROM complaints c 
         JOIN user u ON c.userID = u.userID 
         WHERE c.status = 'declined' 
         ORDER BY c.created_at DESC";

@@ -11,6 +11,8 @@ if(!isset($_SESSION['user_type']) || $_SESSION['user_type'] !== 'staff') {
 
 include '../../../database/database-connection.php';
 include '../../../database/database-operations.php';
+include '../../../includes/event-listeners.php';
+include '../../../includes/email-helper.php';
 
 // Enable error logging
 error_reporting(E_ALL);
@@ -48,48 +50,39 @@ try {
         exit();
     }
 
-    // Determine target table and notification content
+    // Determine notification content
     if ($status === 'resolved') {
-        $target_table = 'approved_complaints';
         $notification_content = "Your complaint has been resolved.";
     } elseif ($status === 'declined') {
-        $target_table = 'declined_complaints';
         $notification_content = "Your complaint has been declined.";
     } else {
         throw new Exception("Invalid status");
     }
 
+    // Get user email preferences
+    $user_sql = "SELECT email, email_notifications FROM user WHERE userID = ?";
+    $user_stmt = $conn->prepare($user_sql);
+    $user_stmt->bind_param('i', $complaint['userID']);
+    $user_stmt->execute();
+    $user_result = $user_stmt->get_result();
+    $user_data = $user_result->fetch_assoc();
+    $user_stmt->close();
+
     // Start transaction
     $conn->begin_transaction();
 
     try {
-        // Insert into target table
-        $insert_sql = "INSERT INTO $target_table (complaintID, type, message, userID, complained_person, status, created_at, staff_comment) 
-                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
-        $stmt = $conn->prepare($insert_sql);
-        $stmt->bind_param('sssissss', 
-            $complaint['complaintID'],
-            $complaint['type'],
-            $complaint['message'],
-            $complaint['userID'],
-            $complaint['complained_person'],
-            $status,
-            $complaint['created_at'],
-            $staff_comment
-        );
+        // Update status in the same complaints table
+        $update_sql = "UPDATE complaints 
+                      SET status = ?, 
+                          staff_comment = ?,
+                          updated_at = NOW() 
+                      WHERE complaintID = ?";
+        $stmt = $conn->prepare($update_sql);
+        $stmt->bind_param('sss', $status, $staff_comment, $complaintID);
         
         if (!$stmt->execute()) {
-            throw new Exception("Failed to insert into $target_table");
-        }
-        $stmt->close();
-
-        // Delete from complaints table
-        $delete_sql = "DELETE FROM complaints WHERE complaintID = ?";
-        $stmt = $conn->prepare($delete_sql);
-        $stmt->bind_param('s', $complaintID);
-        
-        if (!$stmt->execute()) {
-            throw new Exception("Failed to delete from complaints table");
+            throw new Exception("Failed to update complaint status: " . $stmt->error);
         }
         $stmt->close();
 
@@ -97,6 +90,24 @@ try {
         error_log("Adding notification for complaint: " . $notification_content);
         if (!$db->addNotification($complaint['userID'], $notification_content, $staff_comment)) {
             throw new Exception("Failed to add notification");
+        }
+
+        // Send email notification via observer if enabled
+        if ($user_data) {
+            $emailNotificationsEnabled = ($user_data['email_notifications'] == 1 || $user_data['email_notifications'] === true || $user_data['email_notifications'] === '1');
+            $hasEmail = !empty($user_data['email']);
+            
+            if ($emailNotificationsEnabled && $hasEmail) {
+                $dispatcher = get_event_dispatcher();
+                $dispatcher->dispatch('complaint_status_changed', [
+                    'email' => $user_data['email'],
+                    'complaintType' => $complaint['type'],
+                    'status' => $status,
+                    'staff_comment' => $staff_comment
+                ]);
+            } else {
+                error_log("Email notification skipped - Not enabled or no email address");
+            }
         }
 
         // Commit transaction

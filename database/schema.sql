@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS user (
     username VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
     email VARCHAR(255) NULL,
+    email_notifications BOOLEAN NOT NULL DEFAULT FALSE,
     UNIQUE KEY idx_user_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 

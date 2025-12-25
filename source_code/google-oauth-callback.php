@@ -63,6 +63,9 @@ try {
                         'google_id' => $googleId,
                         'profile_picture' => $profilePicture
                     ];
+                    
+                    // Log for debugging
+                    error_log("Google OAuth: New user detected. Session data stored for email: " . $email);
 
                     echo json_encode(['success' => true, 'new_user' => true]);
                     exit();

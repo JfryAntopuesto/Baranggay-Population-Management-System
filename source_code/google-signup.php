@@ -7,11 +7,26 @@ $db = new DatabaseOperations($conn);
 
 // Check if user has Google OAuth data
 if (!isset($_SESSION['google_oauth_data'])) {
+    error_log("Google signup: No session data found. Redirecting to login.");
+    // Show error message before redirect
+    $_SESSION['google_signup_error'] = 'Please sign in with Google first to complete your registration.';
     header("Location: login.php");
     exit();
 }
 
 $googleData = $_SESSION['google_oauth_data'];
+
+// Validate that we have required Google data
+if (empty($googleData['email']) || empty($googleData['firstname']) || empty($googleData['lastname'])) {
+    error_log("Google signup: Incomplete session data. Redirecting to login.");
+    $_SESSION['google_signup_error'] = 'Invalid Google sign-in data. Please try signing in with Google again.';
+    unset($_SESSION['google_oauth_data']);
+    header("Location: login.php");
+    exit();
+}
+
+// Debug: Log session data
+error_log("Google signup: Session data found for email: " . ($googleData['email'] ?? 'unknown'));
 
 if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $firstname = $googleData['firstname'];
@@ -22,6 +37,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $password = $_POST['password'];
     $confirmPassword = $_POST['confirmPassword'];
     $email = $googleData['email'];
+    $email_notifications = isset($_POST['email_notifications']) ? true : false;
 
     // Check if passwords match
     if ($password !== $confirmPassword) {
@@ -32,7 +48,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             $error_message = "Username already exists!";
         } else {
             // Insert new user
-            if ($db->insertUser($firstname, $lastname, $middlename, $birthdate, $username, $password, $email)) {
+            if ($db->insertUser($firstname, $lastname, $middlename, $birthdate, $username, $password, $email, $email_notifications)) {
                 // Save profile picture if available
                 if (!empty($googleData['profile_picture'])) {
                     $userID = $db->getUserIDByUsername($username);
@@ -341,6 +357,16 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                     </span>
                 </div>
                 <div id="confirmPasswordError" class="error-message">Passwords do not match</div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" id="email_notifications" name="email_notifications" value="1" style="width: auto; margin-right: 8px; margin-bottom: 0;">
+                        <span style="font-weight: normal; color: #333;">Allow this system to send an email</span>
+                    </label>
+                    <div style="font-size: 12px; color: #666; margin-top: 5px; margin-left: 24px;">
+                        You will receive email notifications when there are changes to your requests, complaints, and appointments.
+                    </div>
+                </div>
 
                 <?php if (isset($error_message)): ?>
                     <div style="color: red; margin-bottom: 15px; text-align: center;"><?php echo $error_message; ?></div>

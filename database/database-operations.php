@@ -18,10 +18,11 @@ class DatabaseOperations {
         return $result->num_rows > 0;
     }
 
-    public function insertUser($firstname, $lastname, $middlename, $birthdate, $username, $password, $email = null) {
-        $insert_sql = "INSERT INTO user (firstname, lastname, middlename, birthdate, username, password, email) VALUES (?, ?, ?, ?, ?, ?, ?)";
+    public function insertUser($firstname, $lastname, $middlename, $birthdate, $username, $password, $email = null, $email_notifications = false) {
+        $insert_sql = "INSERT INTO user (firstname, lastname, middlename, birthdate, username, password, email, email_notifications) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
         $stmt = $this->conn->prepare($insert_sql);
-        $stmt->bind_param("sssssss", $firstname, $lastname, $middlename, $birthdate, $username, $password, $email);
+        $email_notifications_int = $email_notifications ? 1 : 0;
+        $stmt->bind_param("sssssssi", $firstname, $lastname, $middlename, $birthdate, $username, $password, $email, $email_notifications_int);
         return $stmt->execute();
     }
 
@@ -554,6 +555,25 @@ class DatabaseOperations {
             }
             $this->addNotification($request_data['userID'], $notification_content, $staff_comment);
             
+            // Send email notification if user has enabled email notifications
+            $emailPrefs = $this->getUserEmailPreferences($request_data['userID']);
+            if ($emailPrefs && $emailPrefs['email_notifications'] && !empty($emailPrefs['email'])) {
+                try {
+                    require_once __DIR__ . '/../includes/email-helper.php';
+                    $emailHelper = new EmailHelper();
+                    $emailStatus = strtolower($status);
+                    $emailHelper->sendRequestStatusEmail(
+                        $emailPrefs['email'],
+                        $request_data['type'],
+                        $emailStatus,
+                        $staff_comment
+                    );
+                } catch (Exception $e) {
+                    error_log("Failed to send email notification: " . $e->getMessage());
+                    // Don't fail the transaction if email fails
+                }
+            }
+            
             $this->conn->commit();
             error_log("Successfully updated request status and added notification");
             return true;
@@ -710,6 +730,22 @@ class DatabaseOperations {
         if ($result->num_rows > 0) {
             $row = $result->fetch_assoc();
             return $row['userID'];
+        }
+        return false;
+    }
+
+    public function getUserEmailPreferences($userID) {
+        $sql = "SELECT email, email_notifications FROM user WHERE userID = ?";
+        $stmt = $this->conn->prepare($sql);
+        $stmt->bind_param("i", $userID);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        if ($result->num_rows > 0) {
+            $row = $result->fetch_assoc();
+            return [
+                'email' => $row['email'],
+                'email_notifications' => (bool)$row['email_notifications']
+            ];
         }
         return false;
     }
@@ -1569,5 +1605,22 @@ class DatabaseOperations {
             return $result->fetch_assoc();
         }
         return null;
+    }
+
+    /**
+     * Get all users who opted into email notifications and have a valid email
+     */
+    public function getEmailSubscribers() {
+        $subscribers = [];
+        $sql = "SELECT userID, email, firstname, lastname 
+                FROM user 
+                WHERE email_notifications = 1 AND email IS NOT NULL AND email != ''";
+        $result = $this->conn->query($sql);
+        if ($result && $result->num_rows > 0) {
+            while ($row = $result->fetch_assoc()) {
+                $subscribers[] = $row;
+            }
+        }
+        return $subscribers;
     }
 }

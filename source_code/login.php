@@ -284,6 +284,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
             <?php if (isset($error_message)): ?>
                 <div style="color: red; margin-bottom: 15px; text-align: center;"><?php echo $error_message; ?></div>
             <?php endif; ?>
+            <?php if (isset($_SESSION['google_signup_error'])): ?>
+                <div style="color: red; margin-bottom: 15px; text-align: center; padding: 10px; background-color: #ffe6e6; border-radius: 5px;">
+                    <?php 
+                    echo $_SESSION['google_signup_error']; 
+                    unset($_SESSION['google_signup_error']);
+                    ?>
+                </div>
+            <?php endif; ?>
             <form method="POST" action="">
                 <label for="username">USERNAME:</label>
                 <input id="username" type="text" name="username" placeholder="Enter your username" required>
@@ -353,9 +361,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
                 return response.json();
             })
             .then(data => {
+                console.log('Google OAuth response:', data);
                 if (data.success) {
                     if (data.new_user) {
                         // Redirect to complete signup for new users
+                        console.log('Redirecting to google-signup.php');
                         window.location.href = 'google-signup.php';
                     } else {
                         // Redirect to dashboard for existing users
